@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Performance Analyst</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+            gap: 20px;
+        }
+        
+        .input-section {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .output-section {
+            flex: 2;
+            min-width: 500px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        textarea, input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        textarea {
+            min-height: 300px;
+            resize: vertical;
+        }
+        
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+        }
+        
+        button {
+            flex: 1;
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+        }
+        
+        #analyze-btn {
+            background: #3498db;
+        }
+        
+        #clear-btn {
+            background: #e74c3c;
+        }
+        
+        .server-card {
+            background: #ecf0f1;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .server-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        
+        .status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .status.good {
+            background: #2ecc71;
+            color: white;
+        }
+        
+        .status.bad {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .status.warning {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .metric {
+            flex: 1;
+            min-width: 120px;
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #3498db;
+        }
+        
+        .metric-title {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin-top: 20px;
+        }
+        
+        .performance-summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 5px solid #3498db;
+        }
+        
+        .summary-title {
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .data-points {
+            margin-top: 20px;
+        }
+        
+        .data-point {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .data-point:nth-child(even) {
+            background: #f9f9f9;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: white;
+            background: #2c3e50;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .input-section, .output-section {
+                min-width: 100%;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #7f8c8d;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Server Performance Analyst</h1>
+            <p class="subtitle">Analyze server performance data and generate detailed reports</p>
+        </header>
+        
+        <div class="content">
+            <div class="input-section">
+                <h2>Input Data</h2>
+                <div class="form-group">
+                    <label for="data-input">Paste Server Data:</label>
+                    <textarea id="data-input" placeholder="Paste your server data here..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="server-input">Server to Analyze:</label>
+                    <input type="text" id="server-input" placeholder="Enter server name">
+                </div>
+                
+                <div class="button-group">
+                    <button id="analyze-btn">Analyze Performance</button>
+                    <button id="clear-btn">Clear Inputs</button>
+                </div>
+            </div>
+            
+            <div class="output-section">
+                <h2>Performance Report</h2>
+                <div id="report-container">
+                    <div class="empty-state">
+                        <i>📊</i>
+                        <h3>No Data Analyzed</h3>
+                        <p>Enter server data and click "Analyze Performance" to generate a report</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Server Performance Analyst App &copy; 2023</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize empty chart
+            const ctx = document.getElementById('performance-chart');
+            let chart = null;
+            
+            if (ctx) {
+                chart = new Chart(ctx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Efficiency Rate (%)',
+                            data: [],
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            borderWidth: 3,
+                            pointBackgroundColor: [],
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            fill: true,
+                            tension: 0.2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Efficiency Percentage'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Time Stamps'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Server Performance Over Time',
+                                font: {
+                                    size: 16
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Efficiency: ${context.raw}%`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Clear all data on page load
+            clearAllData();
+            
+            // Analyze button functionality
+            document.getElementById('analyze-btn').addEventListener('click', function() {
+                const serverName = document.getElementById('server-input').value.trim();
+                const dataInput = document.getElementById('data-input').value;
+                
+                if (!serverName) {
+                    alert('Please enter a server name to analyze');
+                    return;
+                }
+                
+                if (!dataInput) {
+                    alert('Please paste server data to analyze');
+                    return;
+                }
+                
+                // Parse the data and generate analysis
+                const analysis = analyzeServerData(dataInput, serverName);
+                
+                // Update the UI with the analysis results
+                updateUI(analysis, serverName);
+            });
+            
+            // Clear button functionality
+            document.getElementById('clear-btn').addEventListener('click', function() {
+                clearAllData();
+                alert('Input fields have been cleared. Ready for new data.');
+            });
+            
+            function clearAllData() {
+                // Clear input fields
+                document.getElementById('data-input').value = '';
+                document.getElementById('server-input').value = '';
+                
+                // Clear report container
+                document.getElementById('report-container').innerHTML = `
+                    <div class="empty-state">
+                        <i>📊</i>
+                        <h3>No Data Analyzed</h3>
+                        <p>Enter server data and click "Analyze Performance" to generate a report</p>
+                    </div>
+                `;
+                
+                // Reset the chart to empty state
+                if (chart) {
+                    chart.data.labels = [];
+                    chart.data.datasets[0].data = [];
+                    chart.data.datasets[0].pointBackgroundColor = [];
+                    chart.update();
+                }
+            }
+            
+            function analyzeServerData(data, serverName) {
+                const lines = data.split('\n');
+                const results = [];
+                let currentTotalOut = null;
+                let currentTimestamp = 1;
+                
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    
+                    // Check for total OUT line
+                    const totalOutMatch = trimmedLine.match(/(\d+)\s*\(OUT\)/);
+                    if (totalOutMatch) {
+                        currentTotalOut = parseInt(totalOutMatch[1]);
+                        continue;
+                    }
+                    
+                    // Check for server data line
+                    if (trimmedLine.includes(serverName)) {
+                        const parts = trimmedLine.split(/\s+/);
+                        if (parts.length >= 3) {
+                            const serverOut = parseInt(parts[parts.length - 1]);
+                            const serverIn = parseInt(parts[parts.length - 2]);
+                            
+                            if (currentTotalOut !== null) {
+                                const efficiency = (serverOut / serverIn) * 100;
+                                results.push({
+                                    timestamp: `Time ${currentTimestamp++}`,
+                                    serverIn: serverIn,
+                                    serverOut: serverOut,
+                                    efficiency: efficiency,
+                                    status: efficiency > 70 ? 'GOOD' : efficiency > 30 ? 'WARNING' : 'POOR'
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                return results;
+            }
+            
+            function updateUI(analysis, serverName) {
+                if (analysis.length === 0) {
+                    alert(`No data found for server ${serverName}`);
+                    return;
+                }
+                
+                // Create server card HTML
+                const serverCardHTML = `
+                    <div class="server-card">
+                        <div class="server-header">
+                            <span class="server-name">${serverName}</span>
+                            <span class="status" id="server-status">Analyzing...</span>
+                        </div>
+                        
+                        <div class="metrics">
+                            <div class="metric">
+                                <div class="metric-value" id="avg-efficiency">0%</div>
+                                <div class="metric-title">Average Efficiency</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value" id="total-points">0/0</div>
+                                <div class="metric-title">Data Points</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value" id="good-points">0</div>
+                                <div class="metric-title">Good Points</div>
+                            </div>
+                            <div class="metric">
+                                <div class="metric-value" id="poor-points">0</div>
+                                <div class="metric-title">Poor Points</div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <canvas id="performance-chart"></canvas>
+                        </div>
+                        
+                        <div class="data-points" id="data-points-container">
+                            <div class="summary-title">Detailed Data Points</div>
+                        </div>
+                        
+                        <div class="performance-summary" id="performance-summary">
+                            <div class="summary-title">Performance Summary</div>
+                        </div>
+                    </div>
+                `;
+                
+                // Update report container
+                document.getElementById('report-container').innerHTML = serverCardHTML;
+                
+                // Reinitialize chart
+                const ctx = document.getElementById('performance-chart');
+                if (ctx) {
+                    chart = new Chart(ctx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: analysis.map(a => a.timestamp),
+                            datasets: [{
+                                label: 'Efficiency Rate (%)',
+                                data: analysis.map(a => a.efficiency),
+                                borderColor: '#3498db',
+                                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                                borderWidth: 3,
+                                pointBackgroundColor: analysis.map(a => 
+                                    a.status === 'GOOD' ? '#2ecc71' : a.status === 'WARNING' ? '#f39c12' : '#e74c3c'
+                                ),
+                                pointRadius: 6,
+                                pointHoverRadius: 8,
+                                fill: true,
+                                tension: 0.2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return value + '%';
+                                        }
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Efficiency Percentage'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Time Stamps'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Server Performance Over Time',
+                                    font: {
+                                        size: 16
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `Efficiency: ${context.raw.toFixed(1)}%`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Calculate metrics
+                const totalPoints = analysis.length;
+                const goodPoints = analysis.filter(a => a.status === 'GOOD').length;
+                const warningPoints = analysis.filter(a => a.status === 'WARNING').length;
+                const poorPoints = analysis.filter(a => a.status === 'POOR').length;
+                const avgEfficiency = analysis.reduce((sum, a) => sum + a.efficiency, 0) / totalPoints;
+                
+                // Determine overall status
+                let overallStatus = 'good';
+                let statusText = 'Good Performance';
+                if (poorPoints > totalPoints / 2) {
+                    overallStatus = 'bad';
+                    statusText = 'Poor Performance';
+                } else if (warningPoints > 0 || poorPoints > 0) {
+                    overallStatus = 'warning';
+                    statusText = 'Needs Attention';
+                }
+                
+                // Update server name and status
+                document.querySelector('.server-name').textContent = serverName;
+                const statusElement = document.getElementById('server-status');
+                statusElement.className = 'status ' + overallStatus;
+                statusElement.textContent = statusText;
+                
+                // Update metrics
+                document.getElementById('avg-efficiency').textContent = avgEfficiency.toFixed(1) + '%';
+                document.getElementById('total-points').textContent = totalPoints + '/' + totalPoints;
+                document.getElementById('good-points').textContent = goodPoints;
+                document.getElementById('poor-points').textContent = poorPoints;
+                
+                // Update data points
+                const dataPointsContainer = document.getElementById('data-points-container');
+                dataPointsContainer.innerHTML = '<div class="summary-title">Detailed Data Points</div>';
+                
+                analysis.forEach(point => {
+                    const pointElement = document.createElement('div');
+                    pointElement.className = 'data-point';
+                    pointElement.innerHTML = `
+                        <span>${point.timestamp}</span>
+                        <span>${point.serverOut}/${point.serverIn} (${point.efficiency.toFixed(1)}%) - ${point.status}</span>
+                    `;
+                    dataPointsContainer.appendChild(pointElement);
+                });
+                
+                // Update summary
+                const summaryElement = document.getElementById('performance-summary');
+                summaryElement.innerHTML = `
+                    <div class="summary-title">Performance Summary</div>
+                    <p>Server <strong>${serverName}</strong> ${getSummaryText(analysis, overallStatus)}</p>
+                `;
+            }
+            
+            function getSummaryText(analysis, overallStatus) {
+                const goodCount = analysis.filter(a => a.status === 'GOOD').length;
+                const poorCount = analysis.filter(a => a.status === 'POOR').length;
+                
+                if (overallStatus === 'good') {
+                    return 'shows consistently good performance with efficient outgoing request handling. The server is operating within expected parameters.';
+                } else if (overallStatus === 'warning') {
+                    return 'shows mixed performance with some efficiency concerns. The server may need monitoring to identify occasional issues.';
+                } else {
+                    return 'shows significant performance issues with inefficient outgoing request handling. Immediate investigation is recommended to identify the root cause of the poor performance.';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
