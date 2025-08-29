@@ -85,7 +85,7 @@
             color: #2c3e50;
         }
         
-        textarea, input {
+        textarea, input, select {
             width: 100%;
             padding: 12px;
             border: 2px solid #ddd;
@@ -99,7 +99,7 @@
             resize: vertical;
         }
         
-        textarea:focus, input:focus {
+        textarea:focus, input:focus, select:focus {
             outline: none;
             border-color: #3498db;
         }
@@ -271,18 +271,84 @@
             margin-bottom: 15px;
             display: block;
         }
+        
+        .format-info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .format-info ul {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+        
+        .server-select {
+            margin-top: 10px;
+        }
+        
+        .server-option {
+            padding: 5px;
+            cursor: pointer;
+        }
+        
+        .server-option:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .debug-info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>Server Performance Analyst</h1>
-            <p class="subtitle">Analyze server performance data and generate detailed reports</p>
+            <p class="subtitle">Analyze server performance data in various formats</p>
         </header>
         
         <div class="content">
             <div class="input-section">
                 <h2>Input Data</h2>
+                <div class="form-group">
+                    <label for="data-format">Data Format:</label>
+                    <select id="data-format">
+                        <option value="auto">Auto Detect</option>
+                        <option value="named">Server Name + IN/OUT Values</option>
+                        <option value="values">IN/OUT Values Only</option>
+                    </select>
+                </div>
+                
                 <div class="form-group">
                     <label for="data-input">Paste Server Data:</label>
                     <textarea id="data-input" placeholder="Paste your server data here..."></textarea>
@@ -290,17 +356,34 @@
                 
                 <div class="form-group">
                     <label for="server-input">Server to Analyze:</label>
-                    <input type="text" id="server-input" placeholder="Enter server name">
+                    <input type="text" id="server-input" placeholder="Enter server name (or leave blank)" list="server-list">
+                    <datalist id="server-list"></datalist>
                 </div>
                 
                 <div class="button-group">
                     <button id="analyze-btn">Analyze Performance</button>
                     <button id="clear-btn">Clear Inputs</button>
                 </div>
+                
+                <div class="format-info">
+                    <strong>Supported Formats:</strong>
+                    <ul>
+                        <li>ServerName IN_value OUT_value</li>
+                        <li>IN_value OUT_value</li>
+                        <li>Tab-separated values</li>
+                        <li>Space-separated values</li>
+                    </ul>
+                </div>
+                
+                <div class="debug-info" id="debug-info"></div>
             </div>
             
             <div class="output-section">
                 <h2>Performance Report</h2>
+                <div class="loading" id="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Analyzing data...</p>
+                </div>
                 <div id="report-container">
                     <div class="empty-state">
                         <i>📊</i>
@@ -319,70 +402,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize empty chart
-            const ctx = document.getElementById('performance-chart');
             let chart = null;
-            
-            if (ctx) {
-                chart = new Chart(ctx.getContext('2d'), {
-                    type: 'line',
-                    data: {
-                        labels: [],
-                        datasets: [{
-                            label: 'Efficiency Rate (%)',
-                            data: [],
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            borderWidth: 3,
-                            pointBackgroundColor: [],
-                            pointRadius: 6,
-                            pointHoverRadius: 8,
-                            fill: true,
-                            tension: 0.2
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                ticks: {
-                                    callback: function(value) {
-                                        return value + '%';
-                                    }
-                                },
-                                title: {
-                                    display: true,
-                                    text: 'Efficiency Percentage'
-                                }
-                            },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Time Stamps'
-                                }
-                            }
-                        },
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Server Performance Over Time',
-                                font: {
-                                    size: 16
-                                }
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return `Efficiency: ${context.raw}%`;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
             
             // Clear all data on page load
             clearAllData();
@@ -391,22 +411,34 @@
             document.getElementById('analyze-btn').addEventListener('click', function() {
                 const serverName = document.getElementById('server-input').value.trim();
                 const dataInput = document.getElementById('data-input').value;
-                
-                if (!serverName) {
-                    alert('Please enter a server name to analyze');
-                    return;
-                }
+                const dataFormat = document.getElementById('data-format').value;
                 
                 if (!dataInput) {
                     alert('Please paste server data to analyze');
                     return;
                 }
                 
-                // Parse the data and generate analysis
-                const analysis = analyzeServerData(dataInput, serverName);
+                // Show loading indicator
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('report-container').style.opacity = '0.5';
                 
-                // Update the UI with the analysis results
-                updateUI(analysis, serverName);
+                // Use setTimeout to allow UI to update before heavy processing
+                setTimeout(function() {
+                    try {
+                        // Parse the data and generate analysis
+                        const analysis = analyzeServerData(dataInput, serverName, dataFormat);
+                        
+                        // Update the UI with the analysis results
+                        updateUI(analysis, serverName);
+                    } catch (error) {
+                        alert('Error analyzing data: ' + error.message);
+                        console.error(error);
+                    } finally {
+                        // Hide loading indicator
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('report-container').style.opacity = '1';
+                    }
+                }, 100);
             });
             
             // Clear button functionality
@@ -415,10 +447,60 @@
                 alert('Input fields have been cleared. Ready for new data.');
             });
             
+            // Detect servers when data changes
+            document.getElementById('data-input').addEventListener('input', function() {
+                detectServers(this.value);
+            });
+            
+            function detectServers(data) {
+                const lines = data.split('\n');
+                const serverNames = new Set();
+                
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine) continue;
+                    
+                    // Split by tabs or spaces
+                    const parts = trimmedLine.split(/\s+/).filter(part => part !== '');
+                    
+                    // Check if this line has a server name (non-numeric first part)
+                    if (parts.length >= 3 && isServerName(parts[0]) && isNumeric(parts[1]) && isNumeric(parts[2])) {
+                        serverNames.add(parts[0]);
+                    }
+                }
+                
+                // Update the datalist with detected servers
+                const serverList = document.getElementById('server-list');
+                serverList.innerHTML = '';
+                
+                serverNames.forEach(server => {
+                    const option = document.createElement('option');
+                    option.value = server;
+                    serverList.appendChild(option);
+                });
+            }
+            
+            function isServerName(value) {
+                // Server names typically contain letters, numbers, and underscores
+                return /^[a-zA-Z0-9_\.\-]+$/.test(value) && !isNumeric(value);
+            }
+            
+            function isNumeric(value) {
+                return !isNaN(parseFloat(value)) && isFinite(value);
+            }
+            
             function clearAllData() {
                 // Clear input fields
                 document.getElementById('data-input').value = '';
                 document.getElementById('server-input').value = '';
+                document.getElementById('data-format').value = 'auto';
+                document.getElementById('server-list').innerHTML = '';
+                document.getElementById('debug-info').innerHTML = '';
+                document.getElementById('debug-info').style.display = 'none';
+                
+                // Hide loading indicator
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('report-container').style.opacity = '1';
                 
                 // Clear report container
                 document.getElementById('report-container').innerHTML = `
@@ -431,64 +513,122 @@
                 
                 // Reset the chart to empty state
                 if (chart) {
-                    chart.data.labels = [];
-                    chart.data.datasets[0].data = [];
-                    chart.data.datasets[0].pointBackgroundColor = [];
-                    chart.update();
+                    chart.destroy();
+                    chart = null;
                 }
             }
             
-            function analyzeServerData(data, serverName) {
+            function analyzeServerData(data, serverName, format) {
                 const lines = data.split('\n');
                 const results = [];
-                let currentTotalOut = null;
-                let currentTimestamp = 1;
+                let timestamp = 1;
+                let debugInfo = "Debug Info:\n";
                 
                 for (const line of lines) {
                     const trimmedLine = line.trim();
+                    if (!trimmedLine) continue;
                     
-                    // Check for total OUT line
-                    const totalOutMatch = trimmedLine.match(/(\d+)\s*\(OUT\)/);
-                    if (totalOutMatch) {
-                        currentTotalOut = parseInt(totalOutMatch[1]);
-                        continue;
-                    }
+                    let serverIn, serverOut, name;
                     
-                    // Check for server data line
-                    if (trimmedLine.includes(serverName)) {
-                        const parts = trimmedLine.split(/\s+/);
-                        if (parts.length >= 3) {
-                            const serverOut = parseInt(parts[parts.length - 1]);
-                            const serverIn = parseInt(parts[parts.length - 2]);
-                            
-                            if (currentTotalOut !== null) {
-                                const efficiency = (serverOut / serverIn) * 100;
-                                results.push({
-                                    timestamp: `Time ${currentTimestamp++}`,
-                                    serverIn: serverIn,
-                                    serverOut: serverOut,
-                                    efficiency: efficiency,
-                                    status: efficiency > 70 ? 'GOOD' : efficiency > 30 ? 'WARNING' : 'POOR'
-                                });
-                            }
+                    // Split by tabs or spaces
+                    const parts = trimmedLine.split(/\s+/).filter(part => part !== '');
+                    
+                    // Skip lines that are clearly not server data
+                    if (parts.length < 2) continue;
+                    if (trimmedLine.includes('(OUT)') || trimmedLine.includes('(IN)')) continue;
+                    if (trimmedLine.includes('===============')) continue;
+                    if (trimmedLine.includes('Monitor') || trimmedLine.includes('Run Cmds')) continue;
+                    if (trimmedLine.includes('RDNS')) continue;
+                    
+                    if (format === 'auto') {
+                        // Auto-detect format
+                        if (parts.length >= 3 && isServerName(parts[0]) && isNumeric(parts[1]) && isNumeric(parts[2])) {
+                            // Format: servername in_value out_value
+                            name = parts[0];
+                            serverIn = parseFloat(parts[1]);
+                            serverOut = parseFloat(parts[2]);
+                            debugInfo += `Found server: ${name}, IN: ${serverIn}, OUT: ${serverOut}\n`;
+                        } else if (parts.length >= 2 && isNumeric(parts[0]) && isNumeric(parts[1])) {
+                            // Format: in_value out_value
+                            serverIn = parseFloat(parts[0]);
+                            serverOut = parseFloat(parts[1]);
+                            name = serverName || "Server";
+                            debugInfo += `Found values: IN: ${serverIn}, OUT: ${serverOut}\n`;
+                        } else {
+                            // Skip lines that don't match expected formats
+                            debugInfo += `Skipping line: ${trimmedLine}\n`;
+                            continue;
+                        }
+                    } else if (format === 'named') {
+                        // Named format: servername in_value out_value
+                        if (parts.length >= 3 && isServerName(parts[0]) && isNumeric(parts[1]) && isNumeric(parts[2])) {
+                            name = parts[0];
+                            serverIn = parseFloat(parts[1]);
+                            serverOut = parseFloat(parts[2]);
+                            debugInfo += `Found server: ${name}, IN: ${serverIn}, OUT: ${serverOut}\n`;
+                        }
+                    } else if (format === 'values') {
+                        // Values only format: in_value out_value
+                        if (parts.length >= 2 && isNumeric(parts[0]) && isNumeric(parts[1])) {
+                            serverIn = parseFloat(parts[0]);
+                            serverOut = parseFloat(parts[1]);
+                            name = serverName || "Server";
+                            debugInfo += `Found values: IN: ${serverIn}, OUT: ${serverOut}\n`;
                         }
                     }
+                    
+                    // If we have valid values, and if a server name is specified, check if it matches
+                    if (serverIn !== undefined && serverOut !== undefined && !isNaN(serverIn) && !isNaN(serverOut)) {
+                        // If user specified a server name, only include data for that server
+                        if (serverName && name !== serverName) {
+                            debugInfo += `Skipping server ${name} - not matching requested server ${serverName}\n`;
+                            continue;
+                        }
+                        
+                        const efficiency = serverIn > 0 ? (serverOut / serverIn) * 100 : 0;
+                        
+                        results.push({
+                            timestamp: `Time ${timestamp++}`,
+                            serverIn: serverIn,
+                            serverOut: serverOut,
+                            efficiency: efficiency,
+                            status: efficiency > 70 ? 'GOOD' : efficiency > 30 ? 'WARNING' : 'POOR',
+                            serverName: name
+                        });
+                        
+                        debugInfo += `Added data point: ${name} - ${serverOut}/${serverIn} = ${efficiency.toFixed(2)}%\n`;
+                    }
                 }
+                
+                // Show debug info
+                const debugElement = document.getElementById('debug-info');
+                debugElement.textContent = debugInfo;
+                debugElement.style.display = 'block';
                 
                 return results;
             }
             
             function updateUI(analysis, serverName) {
                 if (analysis.length === 0) {
-                    alert(`No data found for server ${serverName}`);
+                    alert(`No valid data found for server "${serverName}". Please check your input format and server name.`);
+                    document.getElementById('report-container').innerHTML = `
+                        <div class="empty-state">
+                            <i>❌</i>
+                            <h3>No Data Found</h3>
+                            <p>No valid data found for server "${serverName}". Please check your input.</p>
+                        </div>
+                    `;
                     return;
                 }
+                
+                // Use the server name from the first data point if available
+                const actualServerName = analysis[0].serverName || serverName || "Server";
                 
                 // Create server card HTML
                 const serverCardHTML = `
                     <div class="server-card">
                         <div class="server-header">
-                            <span class="server-name">${serverName}</span>
+                            <span class="server-name">${actualServerName}</span>
                             <span class="status" id="server-status">Analyzing...</span>
                         </div>
                         
@@ -531,7 +671,12 @@
                 // Reinitialize chart
                 const ctx = document.getElementById('performance-chart');
                 if (ctx) {
-                    chart = new Chart(ctx.getContext('2d'), {
+                    // Destroy existing chart if it exists
+                    if (chart) {
+                        chart.destroy();
+                    }
+                    
+                    chart = new Chart(ctx, {
                         type: 'line',
                         data: {
                             labels: analysis.map(a => a.timestamp),
@@ -613,14 +758,14 @@
                 }
                 
                 // Update server name and status
-                document.querySelector('.server-name').textContent = serverName;
+                document.querySelector('.server-name').textContent = actualServerName;
                 const statusElement = document.getElementById('server-status');
                 statusElement.className = 'status ' + overallStatus;
                 statusElement.textContent = statusText;
                 
                 // Update metrics
                 document.getElementById('avg-efficiency').textContent = avgEfficiency.toFixed(1) + '%';
-                document.getElementById('total-points').textContent = totalPoints + '/' + totalPoints;
+                document.getElementById('total-points').textContent = totalPoints;
                 document.getElementById('good-points').textContent = goodPoints;
                 document.getElementById('poor-points').textContent = poorPoints;
                 
@@ -642,7 +787,8 @@
                 const summaryElement = document.getElementById('performance-summary');
                 summaryElement.innerHTML = `
                     <div class="summary-title">Performance Summary</div>
-                    <p>Server <strong>${serverName}</strong> ${getSummaryText(analysis, overallStatus)}</p>
+                    <p>Server <strong>${actualServerName}</strong> ${getSummaryText(analysis, overallStatus)}</p>
+                    <p>Found ${totalPoints} data points: ${goodPoints} good, ${warningPoints} warning, ${poorPoints} poor.</p>
                 `;
             }
             
