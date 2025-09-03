@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
+        /* ===== BASE STYLES ===== */
         * {
             margin: 0;
             padding: 0;
@@ -87,7 +88,7 @@
             gap: 20px;
         }
         
-        /* List Comparison Tool Styles */
+        /* ===== LIST COMPARISON STYLES ===== */
         .list-comparison-container {
             width: 100%;
             display: flex;
@@ -141,6 +142,7 @@
             display: flex;
             gap: 12px;
             margin-top: 16px;
+            flex-wrap: wrap;
         }
         
         button {
@@ -238,7 +240,90 @@
             font-style: italic;
         }
         
-        /* Server Performance Tool Styles */
+        /* ===== HISTORY PANEL STYLES ===== */
+        .history-panel {
+            width: 100%;
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            display: none;
+        }
+        
+        .history-panel.active {
+            display: block;
+        }
+        
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .history-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .history-items {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: white;
+        }
+        
+        .history-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        
+        .history-item-info {
+            font-size: 0.9rem;
+        }
+        
+        .history-item-date {
+            color: #718096;
+            font-size: 0.8rem;
+        }
+        
+        .history-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .history-btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .history-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .download-all-btn {
+            background: #38a169;
+            margin-top: 15px;
+        }
+        
+        /* ===== SERVER PERFORMANCE STYLES ===== */
         .server-card {
             background: white;
             border-radius: 8px;
@@ -346,7 +431,7 @@
             background: #f7fafc;
         }
         
-        /* Email Header Transformer Styles */
+        /* ===== EMAIL TRANSFORMER STYLES ===== */
         .email-header-container {
             width: 100%;
             display: flex;
@@ -415,6 +500,7 @@
             margin-top: 20px;
         }
         
+        /* ===== RESPONSIVE STYLES ===== */
         @media (max-width: 768px) {
             .tool-content.active {
                 flex-direction: column;
@@ -481,6 +567,7 @@
                     <div class="list-button-group">
                         <button id="compare-btn">Compare Lists</button>
                         <button id="clear-list-btn">Clear Lists</button>
+                        <button id="show-history-btn">Show History</button>
                     </div>
                 </div>
                 
@@ -513,6 +600,20 @@
                         </div>
                     </div>
                 </div>
+            </div>
+            
+            <!-- History Panel -->
+            <div id="history-panel" class="history-panel">
+                <div class="history-header">
+                    <h3 class="history-title">Comparison History</h3>
+                    <button id="hide-history-btn" class="history-btn">Hide History</button>
+                </div>
+                
+                <div id="history-items" class="history-items">
+                    <p class="empty-message" id="history-empty-message">No comparison history yet</p>
+                </div>
+                
+                <button id="download-all-history" class="history-btn download-all-btn">Download All History</button>
             </div>
         </div>
         
@@ -612,8 +713,17 @@
     </div>
 
     <script>
+        // ===== MAIN APPLICATION =====
         document.addEventListener('DOMContentLoaded', function() {
-            // Tab navigation functionality
+            // Initialize all tool modules
+            initTabNavigation();
+            initListComparisonTool();
+            initServerPerformanceTool();
+            initEmailTransformerTool();
+        });
+
+        // ===== TAB NAVIGATION =====
+        function initTabNavigation() {
             const tabs = document.querySelectorAll('.nav-tab');
             const toolContents = document.querySelectorAll('.tool-content');
             
@@ -634,42 +744,40 @@
                     });
                 });
             });
-            
-            // List Comparison Tool Functionality
+        }
+
+        // ===== LIST COMPARISON TOOL =====
+        function initListComparisonTool() {
+            // DOM Elements
             const list1Textarea = document.getElementById('list1');
             const list2Textarea = document.getElementById('list2');
             const compareBtn = document.getElementById('compare-btn');
             const clearListBtn = document.getElementById('clear-list-btn');
+            const showHistoryBtn = document.getElementById('show-history-btn');
+            const hideHistoryBtn = document.getElementById('hide-history-btn');
+            const historyPanel = document.getElementById('history-panel');
+            const historyItems = document.getElementById('history-items');
+            const historyEmptyMessage = document.getElementById('history-empty-message');
+            const downloadAllHistoryBtn = document.getElementById('download-all-history');
             const commonResults = document.getElementById('common-results');
             const unique1Results = document.getElementById('unique1-results');
             const unique2Results = document.getElementById('unique2-results');
             
-            // Copy buttons functionality
-            document.querySelectorAll('.copy-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const targetId = this.getAttribute('data-target');
-                    const targetElement = document.getElementById(targetId);
-                    
-                    if (targetElement.querySelector('.empty-message')) {
-                        return; // Don't copy if there's no content
-                    }
-                    
-                    const items = Array.from(targetElement.querySelectorAll('.item'))
-                        .map(item => item.textContent)
-                        .join('\n');
-                    
-                    navigator.clipboard.writeText(items).then(() => {
-                        const originalText = this.textContent;
-                        this.textContent = 'Copied!';
-                        setTimeout(() => {
-                            this.textContent = originalText;
-                        }, 1500);
-                    });
-                });
-            });
+            // State
+            let comparisonHistory = [];
             
-            // Compare lists when button is clicked
-            compareBtn.addEventListener('click', function() {
+            // Event Listeners
+            compareBtn.addEventListener('click', handleCompare);
+            clearListBtn.addEventListener('click', handleClearLists);
+            showHistoryBtn.addEventListener('click', showHistoryPanel);
+            hideHistoryBtn.addEventListener('click', hideHistoryPanel);
+            downloadAllHistoryBtn.addEventListener('click', downloadAllHistory);
+            
+            // Initialize copy buttons
+            initCopyButtons();
+            
+            // Functions
+            function handleCompare() {
                 const list1 = parseList(list1Textarea.value);
                 const list2 = parseList(list2Textarea.value);
                 
@@ -684,35 +792,67 @@
                 // Find unique items in list2
                 const unique2 = findUniqueItems(list2, list1);
                 displayResults(unique2, unique2Results, 'unique-items');
-            });
+                
+                // Add to history
+                addToHistory(list1, list2, common, unique1, unique2);
+            }
             
-            // Clear all list textareas and results
-            clearListBtn.addEventListener('click', function() {
+            function handleClearLists() {
                 list1Textarea.value = '';
                 list2Textarea.value = '';
                 commonResults.innerHTML = '<p class="empty-message">Common items will appear here</p>';
                 unique1Results.innerHTML = '<p class="empty-message">Items only in List 1 will appear here</p>';
                 unique2Results.innerHTML = '<p class="empty-message">Items only in List 2 will appear here</p>';
-            });
+            }
             
-            // Parse text area input into an array of items
+            function showHistoryPanel() {
+                historyPanel.classList.add('active');
+                renderHistory();
+            }
+            
+            function hideHistoryPanel() {
+                historyPanel.classList.remove('active');
+            }
+            
+            function initCopyButtons() {
+                document.querySelectorAll('.copy-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const targetId = this.getAttribute('data-target');
+                        const targetElement = document.getElementById(targetId);
+                        
+                        if (targetElement.querySelector('.empty-message')) {
+                            return; // Don't copy if there's no content
+                        }
+                        
+                        const items = Array.from(targetElement.querySelectorAll('.item'))
+                            .map(item => item.textContent)
+                            .join('\n');
+                        
+                        navigator.clipboard.writeText(items).then(() => {
+                            const originalText = this.textContent;
+                            this.textContent = 'Copied!';
+                            setTimeout(() => {
+                                this.textContent = originalText;
+                            }, 1500);
+                        });
+                    });
+                });
+            }
+            
             function parseList(text) {
                 return text.split('\n')
                     .map(item => item.trim())
                     .filter(item => item.length > 0);
             }
             
-            // Find common items between two lists
             function findCommonItems(list1, list2) {
                 return list1.filter(item => list2.includes(item));
             }
             
-            // Find items in list1 that are not in list2
             function findUniqueItems(list1, list2) {
                 return list1.filter(item => !list2.includes(item));
             }
             
-            // Display results in the specified container
             function displayResults(items, container, className) {
                 if (items.length === 0) {
                     container.innerHTML = '<p class="empty-message">No items found</p>';
@@ -728,19 +868,152 @@
                 });
             }
             
-            // Server Performance Tool Functionality
+            function addToHistory(list1, list2, common, unique1, unique2) {
+                const historyEntry = {
+                    id: Date.now(),
+                    timestamp: new Date().toLocaleString(),
+                    list1: [...list1],
+                    list2: [...list2],
+                    common: [...common],
+                    unique1: [...unique1],
+                    unique2: [...unique2]
+                };
+                
+                comparisonHistory.unshift(historyEntry); // Add to beginning of array
+                
+                // Update history display if panel is visible
+                if (historyPanel.classList.contains('active')) {
+                    renderHistory();
+                }
+            }
+            
+            function renderHistory() {
+                if (comparisonHistory.length === 0) {
+                    historyEmptyMessage.style.display = 'block';
+                    historyItems.innerHTML = '';
+                    return;
+                }
+                
+                historyEmptyMessage.style.display = 'none';
+                
+                // Clear existing history items
+                while (historyItems.firstChild) {
+                    historyItems.removeChild(historyItems.firstChild);
+                }
+                
+                // Add each history entry
+                comparisonHistory.forEach(entry => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'history-item-info';
+                    infoDiv.innerHTML = `
+                        <div>List1: ${entry.list1.length} items | List2: ${entry.list2.length} items</div>
+                        <div class="history-item-date">${entry.timestamp}</div>
+                    `;
+                    
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'history-item-actions';
+                    
+                    const viewBtn = document.createElement('button');
+                    viewBtn.className = 'history-btn';
+                    viewBtn.textContent = 'View';
+                    viewBtn.addEventListener('click', () => viewHistoryEntry(entry));
+                    
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'history-btn';
+                    downloadBtn.textContent = 'Download';
+                    downloadBtn.addEventListener('click', () => downloadHistory([entry], `comparison_${entry.id}`));
+                    
+                    actionsDiv.appendChild(viewBtn);
+                    actionsDiv.appendChild(downloadBtn);
+                    
+                    historyItem.appendChild(infoDiv);
+                    historyItem.appendChild(actionsDiv);
+                    
+                    historyItems.appendChild(historyItem);
+                });
+            }
+            
+            function viewHistoryEntry(entry) {
+                // Populate the textareas
+                list1Textarea.value = entry.list1.join('\n');
+                list2Textarea.value = entry.list2.join('\n');
+                
+                // Display the results
+                displayResults(entry.common, commonResults, 'common-items');
+                displayResults(entry.unique1, unique1Results, 'unique-items');
+                displayResults(entry.unique2, unique2Results, 'unique-items');
+                
+                // Scroll to top
+                window.scrollTo(0, 0);
+            }
+            
+            function downloadHistory(entries, filename) {
+                let content = '';
+                
+                entries.forEach((entry, index) => {
+                    content += `COMPARISON ${index + 1} - ${entry.timestamp}\n`;
+                    content += '='.repeat(50) + '\n\n';
+                    
+                    content += `LIST 1 (${entry.list1.length} items):\n`;
+                    content += entry.list1.join('\n') + '\n\n';
+                    
+                    content += `LIST 2 (${entry.list2.length} items):\n`;
+                    content += entry.list2.join('\n') + '\n\n';
+                    
+                    content += `COMMON ITEMS (${entry.common.length} items):\n`;
+                    content += entry.common.join('\n') + '\n\n';
+                    
+                    content += `UNIQUE TO LIST 1 (${entry.unique1.length} items):\n`;
+                    content += entry.unique1.join('\n') + '\n\n';
+                    
+                    content += `UNIQUE TO LIST 2 (${entry.unique2.length} items):\n`;
+                    content += entry.unique2.join('\n') + '\n\n';
+                    
+                    content += '='.repeat(50) + '\n\n';
+                });
+                
+                const blob = new Blob([content], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${filename}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            function downloadAllHistory() {
+                if (comparisonHistory.length === 0) {
+                    alert('No history to download');
+                    return;
+                }
+                
+                downloadHistory(comparisonHistory, 'all_comparison_history');
+            }
+        }
+
+        // ===== SERVER PERFORMANCE TOOL =====
+        function initServerPerformanceTool() {
+            // DOM Elements
             const dataInput = document.getElementById('data-input');
             const serverInput = document.getElementById('server-input');
             const analyzeBtn = document.getElementById('analyze-btn');
             const clearBtn = document.getElementById('clear-btn');
             const reportContainer = document.getElementById('report-container');
+            
+            // State
             let chart = null;
             
-            // Clear all data on page load
-            clearServerData();
+            // Event Listeners
+            analyzeBtn.addEventListener('click', handleAnalyze);
+            clearBtn.addEventListener('click', handleClear);
             
-            // Analyze button functionality
-            analyzeBtn.addEventListener('click', function() {
+            // Functions
+            function handleAnalyze() {
                 const serverName = serverInput.value.trim();
                 const data = dataInput.value;
                 
@@ -759,13 +1032,12 @@
                 
                 // Update the UI with the analysis results
                 updateServerUI(analysis, serverName);
-            });
+            }
             
-            // Clear button functionality
-            clearBtn.addEventListener('click', function() {
+            function handleClear() {
                 clearServerData();
                 alert('Input fields have been cleared. Ready for new data.');
-            });
+            }
             
             function clearServerData() {
                 // Clear input fields
@@ -1010,322 +1282,319 @@
                     return 'shows significant performance issues with inefficient outgoing request handling. Immediate investigation is recommended to identify the root cause of the poor performance.';
                 }
             }
-            
-            // Email Header Transformer Functionality
-            function initEmailTransformer() {
-                // Utility function
-                function showButtonFeedback(button, message) {
-                    const feedback = document.createElement('span');
-                    feedback.className = 'feedback';
-                    feedback.textContent = message;
-                    
-                    // Remove any existing feedback
-                    const existingFeedback = button.nextElementSibling;
-                    if (existingFeedback && existingFeedback.classList.contains('feedback')) {
-                        existingFeedback.remove();
-                    }
-                    
-                    button.parentNode.insertBefore(feedback, button.nextSibling);
+        }
+
+        // ===== EMAIL TRANSFORMER TOOL =====
+        function initEmailTransformerTool() {
+            // Utility function
+            function showButtonFeedback(button, message) {
+                const feedback = document.createElement('span');
+                feedback.className = 'feedback';
+                feedback.textContent = message;
+                
+                // Remove any existing feedback
+                const existingFeedback = button.nextElementSibling;
+                if (existingFeedback && existingFeedback.classList.contains('feedback')) {
+                    existingFeedback.remove();
+                }
+                
+                button.parentNode.insertBefore(feedback, button.nextSibling);
+            }
+
+            // Single Email Transformer
+            const singleTransformBtn = document.getElementById('singleTransformBtn');
+            const singleIpBtn = document.getElementById('singleIpBtn');
+            const singleCopyBtn = document.getElementById('singleCopyBtn');
+            const singleClearBtn = document.getElementById('singleClearBtn');
+            const singleInput = document.getElementById('singleInput');
+            const singleOutput = document.getElementById('singleOutput');
+
+            singleTransformBtn.addEventListener('click', () => {
+                transformHeaders(false);
+                showButtonFeedback(singleTransformBtn, "Done!");
+            });
+
+            singleIpBtn.addEventListener('click', () => {
+                transformHeaders(true);
+                showButtonFeedback(singleIpBtn, "Done!");
+            });
+
+            singleCopyBtn.addEventListener('click', () => {
+                if (!singleOutput.value) {
+                    showButtonFeedback(singleCopyBtn, "Nothing to copy!");
+                    return;
+                }
+                singleOutput.select();
+                document.execCommand("copy");
+                showButtonFeedback(singleCopyBtn, "Copied!");
+            });
+
+            singleClearBtn.addEventListener('click', () => {
+                singleInput.value = '';
+                singleOutput.value = '';
+                showButtonFeedback(singleClearBtn, "Cleared!");
+            });
+
+            function transformHeaders(addIP) {
+                let input = singleInput.value;
+                if (!input.trim()) {
+                    showButtonFeedback(singleTransformBtn, "Paste headers first!");
+                    return;
                 }
 
-                // Single Email Transformer
-                const singleTransformBtn = document.getElementById('singleTransformBtn');
-                const singleIpBtn = document.getElementById('singleIpBtn');
-                const singleCopyBtn = document.getElementById('singleCopyBtn');
-                const singleClearBtn = document.getElementById('singleClearBtn');
-                const singleInput = document.getElementById('singleInput');
-                const singleOutput = document.getElementById('singleOutput');
-
-                singleTransformBtn.addEventListener('click', () => {
-                    transformHeaders(false);
-                    showButtonFeedback(singleTransformBtn, "Done!");
-                });
-
-                singleIpBtn.addEventListener('click', () => {
-                    transformHeaders(true);
-                    showButtonFeedback(singleIpBtn, "Done!");
-                });
-
-                singleCopyBtn.addEventListener('click', () => {
-                    if (!singleOutput.value) {
-                        showButtonFeedback(singleCopyBtn, "Nothing to copy!");
-                        return;
-                    }
-                    singleOutput.select();
-                    document.execCommand("copy");
-                    showButtonFeedback(singleCopyBtn, "Copied!");
-                });
-
-                singleClearBtn.addEventListener('click', () => {
-                    singleInput.value = '';
-                    singleOutput.value = '';
-                    showButtonFeedback(singleClearBtn, "Cleared!");
-                });
-
-                function transformHeaders(addIP) {
-                    let input = singleInput.value;
-                    if (!input.trim()) {
-                        showButtonFeedback(singleTransformBtn, "Paste headers first!");
-                        return;
-                    }
-
-                    const replacement = document.querySelector('input[name="singleReplace"]:checked').value;
-                    
-                    // Remove Return-Path if present
-                    const returnPathIndex = input.indexOf('Return-Path:');
-                    if (returnPathIndex !== -1) {
-                        const nextNewLine = input.indexOf('\n', returnPathIndex);
-                        input = input.substring(nextNewLine + 1);
-                    }
-
-                    let output = input;
-
-                    // Remove mailto: from any headers
-                    output = output.replace(/mailto:/gi, '');
-
-                    // Transform From and Sender headers with [RDNS] or [P_RRATH]
-                    output = output.replace(/(From:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
-                    output = output.replace(/(From:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
-                    output = output.replace(/(Sender:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
-                    output = output.replace(/(Sender:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
-
-                    // Transform Message-ID
-                    if (output.includes('Message-ID:')) {
-                        output = output.replace(/(Message-ID:\s*<)([^@]+)(@[^>]+>)/gi, function(_, prefix, id, suffix) {
-                            const pos = Math.max(1, Math.floor(Math.random() * id.length));
-                            return prefix + id.slice(0, pos) + '[EID]' + id.slice(pos) + suffix;
-                        });
-                    }
-
-                    // Add [IP] tag if requested
-                    if (addIP && output.includes('Subject:')) {
-                        output = output.replace(/^(Subject:.*?)$/im, function(_, subject) {
-                            return subject.includes('[IP]') ? subject : subject + ' [IP]';
-                        });
-                    }
-
-                    singleOutput.value = output;
+                const replacement = document.querySelector('input[name="singleReplace"]:checked').value;
+                
+                // Remove Return-Path if present
+                const returnPathIndex = input.indexOf('Return-Path:');
+                if (returnPathIndex !== -1) {
+                    const nextNewLine = input.indexOf('\n', returnPathIndex);
+                    input = input.substring(nextNewLine + 1);
                 }
 
-                // Bulk Email Transformer
-                const dropArea = document.getElementById('bulkUploadArea');
-                const fileInput = document.getElementById('bulkFileInput');
-                const bulkTransformBtn = document.getElementById('bulkTransformBtn');
-                const bulkIpBtn = document.getElementById('bulkIpBtn');
-                const templateBtn = document.getElementById('bulkTemplateBtn');
-                const templateContainer = document.getElementById('bulkTemplateContainer');
-                const processTemplateBtn = document.getElementById('bulkProcessTemplateBtn');
-                const resultsArea = document.getElementById('bulkResults');
+                let output = input;
 
-                let filesToProcess = [];
+                // Remove mailto: from any headers
+                output = output.replace(/mailto:/gi, '');
 
-                templateBtn.addEventListener('click', () => {
-                    templateContainer.style.display = templateContainer.style.display === 'block' ? 'none' : 'block';
-                    showButtonFeedback(templateBtn, templateContainer.style.display === 'block' ? "Template Shown" : "Template Hidden");
-                });
+                // Transform From and Sender headers with [RDNS] or [P_RRATH]
+                output = output.replace(/(From:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
+                output = output.replace(/(From:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
+                output = output.replace(/(Sender:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
+                output = output.replace(/(Sender:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
 
-                ["dragenter", "dragover"].forEach(event => {
-                    dropArea.addEventListener(event, e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        dropArea.classList.add("dragover");
+                // Transform Message-ID
+                if (output.includes('Message-ID:')) {
+                    output = output.replace(/(Message-ID:\s*<)([^@]+)(@[^>]+>)/gi, function(_, prefix, id, suffix) {
+                        const pos = Math.max(1, Math.floor(Math.random() * id.length));
+                        return prefix + id.slice(0, pos) + '[EID]' + id.slice(pos) + suffix;
                     });
-                });
+                }
 
-                ["dragleave", "drop"].forEach(event => {
-                    dropArea.addEventListener(event, e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        dropArea.classList.remove("dragover");
+                // Add [IP] tag if requested
+                if (addIP && output.includes('Subject:')) {
+                    output = output.replace(/^(Subject:.*?)$/im, function(_, subject) {
+                        return subject.includes('[IP]') ? subject : subject + ' [IP]';
                     });
-                });
+                }
 
-                dropArea.addEventListener("drop", e => {
+                singleOutput.value = output;
+            }
+
+            // Bulk Email Transformer
+            const dropArea = document.getElementById('bulkUploadArea');
+            const fileInput = document.getElementById('bulkFileInput');
+            const bulkTransformBtn = document.getElementById('bulkTransformBtn');
+            const bulkIpBtn = document.getElementById('bulkIpBtn');
+            const templateBtn = document.getElementById('bulkTemplateBtn');
+            const templateContainer = document.getElementById('bulkTemplateContainer');
+            const processTemplateBtn = document.getElementById('bulkProcessTemplateBtn');
+            const resultsArea = document.getElementById('bulkResults');
+
+            let filesToProcess = [];
+
+            templateBtn.addEventListener('click', () => {
+                templateContainer.style.display = templateContainer.style.display === 'block' ? 'none' : 'block';
+                showButtonFeedback(templateBtn, templateContainer.style.display === 'block' ? "Template Shown" : "Template Hidden");
+            });
+
+            ["dragenter", "dragover"].forEach(event => {
+                dropArea.addEventListener(event, e => {
                     e.preventDefault();
                     e.stopPropagation();
-                    fileInput.files = e.dataTransfer.files;
-                    handleFileSelection();
+                    dropArea.classList.add("dragover");
                 });
+            });
 
-                fileInput.addEventListener("change", handleFileSelection);
+            ["dragleave", "drop"].forEach(event => {
+                dropArea.addEventListener(event, e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropArea.classList.remove("dragover");
+                });
+            });
 
-                async function handleFileSelection() {
-                    filesToProcess = [];
-                    const files = Array.from(fileInput.files);
-                    
-                    if (files.length === 0) {
-                        resultsArea.innerHTML = '<p>No files selected</p>';
-                        return;
-                    }
+            dropArea.addEventListener("drop", e => {
+                e.preventDefault();
+                e.stopPropagation();
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelection();
+            });
 
-                    resultsArea.innerHTML = '<p>Processing files...</p>';
-                    
-                    try {
-                        for (const file of files) {
-                            if (file.name.endsWith('.zip')) {
-                                const zip = await JSZip.loadAsync(file);
-                                for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
-                                    if (!zipEntry.dir && (zipEntry.name.endsWith('.eml') || zipEntry.name.endsWith('.txt'))) {
-                                        const content = await zipEntry.async('text');
-                                        filesToProcess.push({
-                                            name: zipEntry.name.split('/').pop(),
-                                            content: content
-                                        });
-                                    }
+            fileInput.addEventListener("change", handleFileSelection);
+
+            async function handleFileSelection() {
+                filesToProcess = [];
+                const files = Array.from(fileInput.files);
+                
+                if (files.length === 0) {
+                    resultsArea.innerHTML = '<p>No files selected</p>';
+                    return;
+                }
+
+                resultsArea.innerHTML = '<p>Processing files...</p>';
+                
+                try {
+                    for (const file of files) {
+                        if (file.name.endsWith('.zip')) {
+                            const zip = await JSZip.loadAsync(file);
+                            for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+                                if (!zipEntry.dir && (zipEntry.name.endsWith('.eml') || zipEntry.name.endsWith('.txt'))) {
+                                    const content = await zipEntry.async('text');
+                                    filesToProcess.push({
+                                        name: zipEntry.name.split('/').pop(),
+                                        content: content
+                                    });
                                 }
-                            } else if (file.name.endsWith('.eml') || file.name.endsWith('.txt')) {
-                                const content = await file.text();
-                                filesToProcess.push({
-                                    name: file.name,
-                                    content: content
-                                });
                             }
+                        } else if (file.name.endsWith('.eml') || file.name.endsWith('.txt')) {
+                            const content = await file.text();
+                            filesToProcess.push({
+                                name: file.name,
+                                content: content
+                            });
                         }
-
-                        updateFileList();
-                        showButtonFeedback(bulkTransformBtn, `${filesToProcess.length} files ready`);
-                    } catch (error) {
-                        resultsArea.innerHTML = `<p style="color:red;">Error processing files: ${error.message}</p>`;
-                        console.error(error);
                     }
+
+                    updateFileList();
+                    showButtonFeedback(bulkTransformBtn, `${filesToProcess.length} files ready`);
+                } catch (error) {
+                    resultsArea.innerHTML = `<p style="color:red;">Error processing files: ${error.message}</p>`;
+                    console.error(error);
                 }
-
-                function updateFileList() {
-                    if (filesToProcess.length === 0) {
-                        resultsArea.innerHTML = '<p>No valid EML or TXT files found</p>';
-                        return;
-                    }
-
-                    resultsArea.innerHTML = `
-                        <p><strong>Selected files:</strong> ${filesToProcess.length}</p>
-                        <ul style="margin-top: 0.5rem; max-height: 200px; overflow-y: auto;">
-                            ${filesToProcess.map(file => `<li>${file.name}</li>`).join('')}
-                        </ul>
-                    `;
-                }
-
-                function transformContent(content, addIP) {
-                    const replacement = document.querySelector('input[name="bulkReplace"]:checked').value;
-                    
-                    if (!content.includes('Return-Path:') && !content.includes('From:')) {
-                        return content;
-                    }
-
-                    const returnPathIndex = content.indexOf('Return-Path:');
-                    if (returnPathIndex !== -1) {
-                        const nextNewLine = content.indexOf('\n', returnPathIndex);
-                        content = content.substring(nextNewLine + 1);
-                    }
-
-                    let output = content;
-
-                    // Remove mailto: from any headers
-                    output = output.replace(/mailto:/gi, '');
-
-                    // Transform From and Sender headers with [RDNS] or [P_RRATH]
-                    output = output.replace(/(From:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
-                    output = output.replace(/(From:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
-                    output = output.replace(/(Sender:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
-                    output = output.replace(/(Sender:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
-
-                    // Transform Message-ID if present
-                    if (output.includes('Message-ID:')) {
-                        output = output.replace(/(Message-ID:\s*<)([^@]+)(@[^>]+>)/gi, (_, prefix, id, suffix) => {
-                            const pos = Math.max(1, Math.floor(Math.random() * id.length));
-                            return prefix + id.slice(0, pos) + '[EID]' + id.slice(pos) + suffix;
-                        });
-                    }
-
-                    // Add [IP] tag if requested and Subject exists
-                    if (addIP && output.includes('Subject:')) {
-                        output = output.replace(/^(Subject:.*?)$/im, (_, subject) =>
-                            subject.includes('[IP]') ? subject : subject + ' [IP]'
-                        );
-                    }
-
-                    return output;
-                }
-
-                async function processFiles(addIP) {
-                    if (filesToProcess.length === 0) {
-                        showButtonFeedback(bulkTransformBtn, "Upload files first!");
-                        return;
-                    }
-
-                    try {
-                        const zip = new JSZip();
-                        
-                        for (const file of filesToProcess) {
-                            const output = transformContent(file.content, addIP);
-                            zip.file(file.name, output);
-                        }
-
-                        const blob = await zip.generateAsync({ type: "blob" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = "transformed_headers.zip";
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        showButtonFeedback(bulkTransformBtn, "Downloaded!");
-                    } catch (error) {
-                        showButtonFeedback(bulkTransformBtn, "Error occurred!");
-                        console.error(error);
-                    }
-                }
-
-                async function processWithTemplate() {
-                    if (filesToProcess.length === 0) {
-                        showButtonFeedback(processTemplateBtn, "Upload files first!");
-                        return;
-                    }
-
-                    const template = document.getElementById("bulkTemplateInput").value;
-                    if (!template) {
-                        showButtonFeedback(processTemplateBtn, "Enter template first!");
-                        return;
-                    }
-
-                    if (!template.includes("[newsletter]")) {
-                        showButtonFeedback(processTemplateBtn, 'Add "[newsletter]" placeholder!');
-                        return;
-                    }
-
-                    try {
-                        const zip = new JSZip();
-                        
-                        for (const file of filesToProcess) {
-                            const transformedContent = transformContent(file.content, false);
-                            const finalContent = template.replace("[newsletter]", transformedContent);
-                            zip.file(file.name, finalContent);
-                        }
-
-                        const blob = await zip.generateAsync({ type: "blob" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = "templated_emails.zip";
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        showButtonFeedback(processTemplateBtn, "Downloaded!");
-                    } catch (error) {
-                        showButtonFeedback(processTemplateBtn, "Error occurred!");
-                        console.error(error);
-                    }
-                }
-
-                bulkTransformBtn.addEventListener('click', () => processFiles(false));
-                bulkIpBtn.addEventListener('click', () => processFiles(true));
-                processTemplateBtn.addEventListener('click', processWithTemplate);
             }
-            
-            // Initialize the Email Header Transformer
-            initEmailTransformer();
-        });
+
+            function updateFileList() {
+                if (filesToProcess.length === 0) {
+                    resultsArea.innerHTML = '<p>No valid EML or TXT files found</p>';
+                    return;
+                }
+
+                resultsArea.innerHTML = `
+                    <p><strong>Selected files:</strong> ${filesToProcess.length}</p>
+                    <ul style="margin-top: 0.5rem; max-height: 200px; overflow-y: auto;">
+                        ${filesToProcess.map(file => `<li>${file.name}</li>`).join('')}
+                    </ul>
+                `;
+            }
+
+            function transformContent(content, addIP) {
+                const replacement = document.querySelector('input[name="bulkReplace"]:checked').value;
+                
+                if (!content.includes('Return-Path:') && !content.includes('From:')) {
+                    return content;
+                }
+
+                const returnPathIndex = content.indexOf('Return-Path:');
+                if (returnPathIndex !== -1) {
+                    const nextNewLine = content.indexOf('\n', returnPathIndex);
+                    content = content.substring(nextNewLine + 1);
+                }
+
+                let output = content;
+
+                // Remove mailto: from any headers
+                output = output.replace(/mailto:/gi, '');
+
+                // Transform From and Sender headers with [RDNS] or [P_RRATH]
+                output = output.replace(/(From:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
+                output = output.replace(/(From:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
+                output = output.replace(/(Sender:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
+                output = output.replace(/(Sender:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
+
+                // Transform Message-ID if present
+                if (output.includes('Message-ID:')) {
+                    output = output.replace(/(Message-ID:\s*<)([^@]+)(@[^>]+>)/gi, (_, prefix, id, suffix) => {
+                        const pos = Math.max(1, Math.floor(Math.random() * id.length));
+                        return prefix + id.slice(0, pos) + '[EID]' + id.slice(pos) + suffix;
+                    });
+                }
+
+                // Add [IP] tag if requested and Subject exists
+                if (addIP && output.includes('Subject:')) {
+                    output = output.replace(/^(Subject:.*?)$/im, (_, subject) =>
+                        subject.includes('[IP]') ? subject : subject + ' [IP]'
+                    );
+                }
+
+                return output;
+            }
+
+            async function processFiles(addIP) {
+                if (filesToProcess.length === 0) {
+                    showButtonFeedback(bulkTransformBtn, "Upload files first!");
+                    return;
+                }
+
+                try {
+                    const zip = new JSZip();
+                    
+                    for (const file of filesToProcess) {
+                        const output = transformContent(file.content, addIP);
+                        zip.file(file.name, output);
+                    }
+
+                    const blob = await zip.generateAsync({ type: "blob" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "transformed_headers.zip";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showButtonFeedback(bulkTransformBtn, "Downloaded!");
+                } catch (error) {
+                    showButtonFeedback(bulkTransformBtn, "Error occurred!");
+                    console.error(error);
+                }
+            }
+
+            async function processWithTemplate() {
+                if (filesToProcess.length === 0) {
+                    showButtonFeedback(processTemplateBtn, "Upload files first!");
+                    return;
+                }
+
+                const template = document.getElementById("bulkTemplateInput").value;
+                if (!template) {
+                    showButtonFeedback(processTemplateBtn, "Enter template first!");
+                    return;
+                }
+
+                if (!template.includes("[newsletter]")) {
+                    showButtonFeedback(processTemplateBtn, 'Add "[newsletter]" placeholder!');
+                    return;
+                }
+
+                try {
+                    const zip = new JSZip();
+                    
+                    for (const file of filesToProcess) {
+                        const transformedContent = transformContent(file.content, false);
+                        const finalContent = template.replace("[newsletter]", transformedContent);
+                        zip.file(file.name, finalContent);
+                    }
+
+                    const blob = await zip.generateAsync({ type: "blob" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "templated_emails.zip";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showButtonFeedback(processTemplateBtn, "Downloaded!");
+                } catch (error) {
+                    showButtonFeedback(processTemplateBtn, "Error occurred!");
+                    console.error(error);
+                }
+            }
+
+            bulkTransformBtn.addEventListener('click', () => processFiles(false));
+            bulkIpBtn.addEventListener('click', () => processFiles(true));
+            processTemplateBtn.addEventListener('click', processWithTemplate);
+        }
     </script>
 </body>
 </html>
