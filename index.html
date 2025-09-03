@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Performance Analyst</title>
+    <title>Multi-Tool Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -14,64 +15,94 @@
         }
         
         body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            background: #f5f7fa;
             min-height: 100vh;
             padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #333;
+            color: #2d3748;
         }
         
-        .container {
+        .dashboard-container {
             width: 100%;
-            max-width: 1200px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             overflow: hidden;
         }
         
         header {
-            background: #2c3e50;
+            background: #4a5568;
             color: white;
             padding: 20px;
             text-align: center;
         }
         
         h1 {
-            font-size: 2.2rem;
-            margin-bottom: 10px;
+            font-size: 2rem;
+            margin-bottom: 8px;
+            font-weight: 600;
         }
         
         .subtitle {
-            font-size: 1.1rem;
-            opacity: 0.9;
+            font-size: 1rem;
+            opacity: 0.85;
         }
         
-        .content {
+        .nav-tabs {
+            display: flex;
+            background: #2d3748;
+            padding: 0;
+            flex-wrap: wrap;
+        }
+        
+        .nav-tab {
+            padding: 14px 24px;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+            text-align: center;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .nav-tab:hover {
+            background: #4a5568;
+        }
+        
+        .nav-tab.active {
+            background: #4299e1;
+            box-shadow: inset 0 -3px 0 #3182ce;
+        }
+        
+        .tool-content {
+            display: none;
+            padding: 20px;
+        }
+        
+        .tool-content.active {
             display: flex;
             flex-wrap: wrap;
-            padding: 20px;
             gap: 20px;
         }
         
-        .input-section {
+        /* List Comparison Tool Styles */
+        .list-comparison-container {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .input-section, .output-section {
             flex: 1;
             min-width: 300px;
             padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        .output-section {
-            flex: 2;
-            min-width: 500px;
-            padding: 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            background: #f8fafc;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
         }
         
         .form-group {
@@ -82,64 +113,139 @@
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: #2c3e50;
+            color: #2d3748;
         }
         
-        textarea, input, select {
+        textarea, input {
             width: 100%;
             padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            background: white;
         }
         
         textarea {
-            min-height: 300px;
+            min-height: 150px;
             resize: vertical;
         }
         
-        textarea:focus, input:focus, select:focus {
+        textarea:focus, input:focus {
             outline: none;
-            border-color: #3498db;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
         }
         
-        .button-group {
+        .button-group, .list-button-group {
             display: flex;
-            gap: 15px;
+            gap: 12px;
+            margin-top: 16px;
         }
         
         button {
-            flex: 1;
-            background: #3498db;
+            background: #4299e1;
             color: white;
             border: none;
-            padding: 14px 20px;
-            border-radius: 8px;
+            padding: 12px 18px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.3s;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
         }
         
         button:hover {
             opacity: 0.9;
+            transform: translateY(-1px);
         }
         
-        #analyze-btn {
-            background: #3498db;
+        #compare-btn {
+            background: #4299e1;
         }
         
-        #clear-btn {
-            background: #e74c3c;
+        #clear-list-btn, #clear-btn {
+            background: #e53e3e;
         }
         
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+        
+        .result-box {
+            background-color: white;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            position: relative;
+        }
+        
+        .result-box h3 {
+            margin-bottom: 12px;
+            color: #4a5568;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .copy-btn {
+            background: #edf2f7;
+            color: #4a5568;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .copy-btn:hover {
+            background: #e2e8f0;
+        }
+        
+        .result-content {
+            max-height: 250px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+        
+        .common-items {
+            color: #38a169;
+            font-weight: 500;
+        }
+        
+        .unique-items {
+            color: #e53e3e;
+            font-weight: 500;
+        }
+        
+        .item {
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            background-color: #f7fafc;
+            border-radius: 4px;
+            border-left: 3px solid #4299e1;
+        }
+        
+        .empty-message {
+            color: #a0aec0;
+            font-style: italic;
+        }
+        
+        /* Server Performance Tool Styles */
         .server-card {
-            background: #ecf0f1;
-            border-radius: 10px;
+            background: white;
+            border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
         }
         
         .server-header {
@@ -150,77 +256,78 @@
         }
         
         .server-name {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #2c3e50;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2d3748;
         }
         
         .status {
-            padding: 6px 12px;
+            padding: 5px 10px;
             border-radius: 20px;
-            font-weight: 600;
+            font-weight: 500;
+            font-size: 14px;
         }
         
         .status.good {
-            background: #2ecc71;
-            color: white;
+            background: #c6f6d5;
+            color: #22543d;
         }
         
         .status.bad {
-            background: #e74c3c;
-            color: white;
+            background: #fed7d7;
+            color: #742a2a;
         }
         
         .status.warning {
-            background: #f39c12;
-            color: white;
+            background: #feebcb;
+            color: #744210;
         }
         
         .metrics {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 12px;
             margin-bottom: 15px;
         }
         
         .metric {
             flex: 1;
-            min-width: 120px;
+            min-width: 100px;
             text-align: center;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            padding: 12px;
+            background: #f7fafc;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
         
         .metric-value {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #3498db;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4299e1;
         }
         
         .metric-title {
-            font-size: 0.9rem;
-            color: #7f8c8d;
+            font-size: 0.8rem;
+            color: #718096;
         }
         
         .chart-container {
-            height: 300px;
+            height: 280px;
             margin-top: 20px;
         }
         
         .performance-summary {
             margin-top: 20px;
             padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 5px solid #3498db;
+            background: #f7fafc;
+            border-radius: 6px;
+            border-left: 4px solid #4299e1;
         }
         
         .summary-title {
-            font-weight: 700;
-            margin-bottom: 10px;
-            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2d3748;
         }
         
         .data-points {
@@ -229,25 +336,87 @@
         
         .data-point {
             padding: 10px;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #e2e8f0;
             display: flex;
             justify-content: space-between;
+            font-size: 14px;
         }
         
         .data-point:nth-child(even) {
-            background: #f9f9f9;
+            background: #f7fafc;
+        }
+        
+        /* Email Header Transformer Styles */
+        .email-header-container {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .radio-group {
+            margin: 15px 0;
+        }
+        
+        .radio-group label {
+            display: inline-block;
+            margin-right: 15px;
+            font-weight: normal;
+        }
+        
+        .feedback {
+            font-size: 0.85em;
+            color: #38a169;
+            margin-left: 8px;
+            display: inline-block;
+            animation: fadeOut 2s forwards;
+            animation-delay: 1s;
+            opacity: 1;
+        }
+        
+        @keyframes fadeOut {
+            to { opacity: 0; }
+        }
+        
+        #bulkUploadArea {
+            border: 2px dashed #cbd5e0;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            transition: border 0.2s;
+            background: #f7fafc;
+        }
+        
+        #bulkUploadArea.dragover {
+            border-color: #4299e1;
+            background: #ebf4ff;
+        }
+        
+        #bulkResults {
+            margin-top: 15px;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            min-height: 50px;
+            background: white;
+        }
+        
+        #bulkTemplateContainer {
+            display: none;
+            margin-top: 15px;
         }
         
         footer {
             text-align: center;
             padding: 20px;
             color: white;
-            background: #2c3e50;
+            background: #2d3748;
             margin-top: 20px;
         }
         
         @media (max-width: 768px) {
-            .content {
+            .tool-content.active {
                 flex-direction: column;
             }
             
@@ -255,100 +424,102 @@
                 min-width: 100%;
             }
             
-            .button-group {
+            .button-group, .list-button-group {
                 flex-direction: column;
+            }
+            
+            .nav-tabs {
+                flex-direction: column;
+            }
+            
+            .nav-tab {
+                min-width: 100%;
             }
         }
         
         .empty-state {
             text-align: center;
-            padding: 40px 20px;
-            color: #7f8c8d;
+            padding: 30px 20px;
+            color: #a0aec0;
         }
         
         .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 15px;
+            font-size: 2.5rem;
+            margin-bottom: 12px;
             display: block;
-        }
-        
-        .format-info {
-            background: #e3f2fd;
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 15px;
-            font-size: 0.9rem;
-        }
-        
-        .format-info ul {
-            margin-left: 20px;
-            margin-top: 5px;
-        }
-        
-        .server-select {
-            margin-top: 10px;
-        }
-        
-        .server-option {
-            padding: 5px;
-            cursor: pointer;
-        }
-        
-        .server-option:hover {
-            background-color: #f0f0f0;
-        }
-        
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-        
-        .loading-spinner {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .debug-info {
-            font-size: 12px;
-            color: #888;
-            margin-top: 10px;
-            background: #f9f9f9;
-            padding: 10px;
-            border-radius: 5px;
-            display: none;
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="dashboard-container">
         <header>
-            <h1>Server Performance Analyst</h1>
-            <p class="subtitle">Analyze server performance data in various formats</p>
+            <h1>Multi-Tool Dashboard</h1>
+            <p class="subtitle">All your analysis tools in one place</p>
         </header>
         
-        <div class="content">
-            <div class="input-section">
-                <h2>Input Data</h2>
-                <div class="form-group">
-                    <label for="data-format">Data Format:</label>
-                    <select id="data-format">
-                        <option value="auto">Auto Detect</option>
-                        <option value="named">Server Name + IN/OUT Values</option>
-                        <option value="values">IN/OUT Values Only</option>
-                    </select>
+        <div class="nav-tabs">
+            <div class="nav-tab active" data-tool="list-comparison">List Comparison</div>
+            <div class="nav-tab" data-tool="server-performance">Server Performance</div>
+            <div class="nav-tab" data-tool="email-transformer">Email Transformer</div>
+        </div>
+        
+        <!-- List Comparison Tool -->
+        <div id="list-comparison" class="tool-content active">
+            <div class="list-comparison-container">
+                <div class="input-section">
+                    <h2>Input Lists</h2>
+                    <div class="form-group">
+                        <label for="list1">List 1:</label>
+                        <textarea id="list1" placeholder="Enter items for List 1 (one per line)"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="list2">List 2:</label>
+                        <textarea id="list2" placeholder="Enter items for List 2 (one per line)"></textarea>
+                    </div>
+                    
+                    <div class="list-button-group">
+                        <button id="compare-btn">Compare Lists</button>
+                        <button id="clear-list-btn">Clear Lists</button>
+                    </div>
                 </div>
                 
+                <div class="output-section">
+                    <h2>Comparison Results</h2>
+                    <div class="results">
+                        <div class="result-box">
+                            <h3>Common Items
+                                <button class="copy-btn" data-target="common-results">Copy</button>
+                            </h3>
+                            <div id="common-results" class="result-content">
+                                <p class="empty-message">Common items will appear here</p>
+                            </div>
+                        </div>
+                        <div class="result-box">
+                            <h3>Unique to List 1
+                                <button class="copy-btn" data-target="unique1-results">Copy</button>
+                            </h3>
+                            <div id="unique1-results" class="result-content">
+                                <p class="empty-message">Items only in List 1 will appear here</p>
+                            </div>
+                        </div>
+                        <div class="result-box">
+                            <h3>Unique to List 2
+                                <button class="copy-btn" data-target="unique2-results">Copy</button>
+                            </h3>
+                            <div id="unique2-results" class="result-content">
+                                <p class="empty-message">Items only in List 2 will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Server Performance Tool -->
+        <div id="server-performance" class="tool-content">
+            <div class="input-section">
+                <h2>Input Data</h2>
                 <div class="form-group">
                     <label for="data-input">Paste Server Data:</label>
                     <textarea id="data-input" placeholder="Paste your server data here..."></textarea>
@@ -356,34 +527,17 @@
                 
                 <div class="form-group">
                     <label for="server-input">Server to Analyze:</label>
-                    <input type="text" id="server-input" placeholder="Enter server name (or leave blank)" list="server-list">
-                    <datalist id="server-list"></datalist>
+                    <input type="text" id="server-input" placeholder="Enter server name">
                 </div>
                 
                 <div class="button-group">
                     <button id="analyze-btn">Analyze Performance</button>
                     <button id="clear-btn">Clear Inputs</button>
                 </div>
-                
-                <div class="format-info">
-                    <strong>Supported Formats:</strong>
-                    <ul>
-                        <li>ServerName IN_value OUT_value</li>
-                        <li>IN_value OUT_value</li>
-                        <li>Tab-separated values</li>
-                        <li>Space-separated values</li>
-                    </ul>
-                </div>
-                
-                <div class="debug-info" id="debug-info"></div>
             </div>
             
             <div class="output-section">
                 <h2>Performance Report</h2>
-                <div class="loading" id="loading">
-                    <div class="loading-spinner"></div>
-                    <p>Analyzing data...</p>
-                </div>
                 <div id="report-container">
                     <div class="empty-state">
                         <i>📊</i>
@@ -394,116 +548,232 @@
             </div>
         </div>
         
+        <!-- Email Header Transformer Tool -->
+        <div id="email-transformer" class="tool-content">
+            <div class="email-header-container">
+                <div class="input-section">
+                    <h2>Single Email Transformer</h2>
+                    <textarea id="singleInput" placeholder="Paste email headers here..."></textarea>
+                    
+                    <div class="radio-group">
+                        <label>Replace domain with:</label>
+                        <label><input type="radio" name="singleReplace" value="RDNS" checked> [RDNS]</label>
+                        <label><input type="radio" name="singleReplace" value="P_RRATH"> [P_RRATH]</label>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="singleTransformBtn">Transform Headers</button>
+                        <button id="singleIpBtn">Add [IP] Tag</button>
+                        <button id="singleCopyBtn">Copy Result</button>
+                        <button id="singleClearBtn">Clear All</button>
+                    </div>
+                </div>
+                
+                <div class="output-section">
+                    <h2>Transformed Headers</h2>
+                    <textarea id="singleOutput" placeholder="Transformed headers will appear here..." readonly></textarea>
+                </div>
+            </div>
+            
+            <div class="input-section" style="margin-top: 20px; width: 100%;">
+                <h2>Bulk Email Transformer</h2>
+                
+                <div id="bulkUploadArea">
+                    <p>Drag & drop EML/TXT files or ZIP archives here</p>
+                    <p>or</p>
+                    <input type="file" id="bulkFileInput" multiple accept=".eml,.txt,.zip">
+                </div>
+                
+                <div class="radio-group">
+                    <label>Replace domain with:</label>
+                    <label><input type="radio" name="bulkReplace" value="RDNS" checked> [RDNS]</label>
+                    <label><input type="radio" name="bulkReplace" value="P_RRATH"> [P_RRATH]</label>
+                </div>
+                
+                <div class="button-group">
+                    <button id="bulkTransformBtn">Transform Files</button>
+                    <button id="bulkIpBtn">Add [IP] Tag</button>
+                    <button id="bulkTemplateBtn">Use Template</button>
+                </div>
+                
+                <div id="bulkTemplateContainer">
+                    <p>Template (use [newsletter] placeholder):</p>
+                    <textarea id="bulkTemplateInput" placeholder="Paste your template here..."></textarea>
+                    <button id="bulkProcessTemplateBtn">Process with Template</button>
+                </div>
+                
+                <div id="bulkResults"></div>
+            </div>
+        </div>
+        
         <footer>
-            <p>Server Performance Analyst App &copy; 2023</p>
+            <p>Multi-Tool Dashboard &copy; 2023</p>
         </footer>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize empty chart
+            // Tab navigation functionality
+            const tabs = document.querySelectorAll('.nav-tab');
+            const toolContents = document.querySelectorAll('.tool-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const toolId = tab.getAttribute('data-tool');
+                    
+                    // Update active tab
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Show selected tool content
+                    toolContents.forEach(content => {
+                        content.classList.remove('active');
+                        if (content.id === toolId) {
+                            content.classList.add('active');
+                        }
+                    });
+                });
+            });
+            
+            // List Comparison Tool Functionality
+            const list1Textarea = document.getElementById('list1');
+            const list2Textarea = document.getElementById('list2');
+            const compareBtn = document.getElementById('compare-btn');
+            const clearListBtn = document.getElementById('clear-list-btn');
+            const commonResults = document.getElementById('common-results');
+            const unique1Results = document.getElementById('unique1-results');
+            const unique2Results = document.getElementById('unique2-results');
+            
+            // Copy buttons functionality
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    const targetElement = document.getElementById(targetId);
+                    
+                    if (targetElement.querySelector('.empty-message')) {
+                        return; // Don't copy if there's no content
+                    }
+                    
+                    const items = Array.from(targetElement.querySelectorAll('.item'))
+                        .map(item => item.textContent)
+                        .join('\n');
+                    
+                    navigator.clipboard.writeText(items).then(() => {
+                        const originalText = this.textContent;
+                        this.textContent = 'Copied!';
+                        setTimeout(() => {
+                            this.textContent = originalText;
+                        }, 1500);
+                    });
+                });
+            });
+            
+            // Compare lists when button is clicked
+            compareBtn.addEventListener('click', function() {
+                const list1 = parseList(list1Textarea.value);
+                const list2 = parseList(list2Textarea.value);
+                
+                // Find common items
+                const common = findCommonItems(list1, list2);
+                displayResults(common, commonResults, 'common-items');
+                
+                // Find unique items in list1
+                const unique1 = findUniqueItems(list1, list2);
+                displayResults(unique1, unique1Results, 'unique-items');
+                
+                // Find unique items in list2
+                const unique2 = findUniqueItems(list2, list1);
+                displayResults(unique2, unique2Results, 'unique-items');
+            });
+            
+            // Clear all list textareas and results
+            clearListBtn.addEventListener('click', function() {
+                list1Textarea.value = '';
+                list2Textarea.value = '';
+                commonResults.innerHTML = '<p class="empty-message">Common items will appear here</p>';
+                unique1Results.innerHTML = '<p class="empty-message">Items only in List 1 will appear here</p>';
+                unique2Results.innerHTML = '<p class="empty-message">Items only in List 2 will appear here</p>';
+            });
+            
+            // Parse text area input into an array of items
+            function parseList(text) {
+                return text.split('\n')
+                    .map(item => item.trim())
+                    .filter(item => item.length > 0);
+            }
+            
+            // Find common items between two lists
+            function findCommonItems(list1, list2) {
+                return list1.filter(item => list2.includes(item));
+            }
+            
+            // Find items in list1 that are not in list2
+            function findUniqueItems(list1, list2) {
+                return list1.filter(item => !list2.includes(item));
+            }
+            
+            // Display results in the specified container
+            function displayResults(items, container, className) {
+                if (items.length === 0) {
+                    container.innerHTML = '<p class="empty-message">No items found</p>';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                items.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = `item ${className}`;
+                    div.textContent = item;
+                    container.appendChild(div);
+                });
+            }
+            
+            // Server Performance Tool Functionality
+            const dataInput = document.getElementById('data-input');
+            const serverInput = document.getElementById('server-input');
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const reportContainer = document.getElementById('report-container');
             let chart = null;
             
             // Clear all data on page load
-            clearAllData();
+            clearServerData();
             
             // Analyze button functionality
-            document.getElementById('analyze-btn').addEventListener('click', function() {
-                const serverName = document.getElementById('server-input').value.trim();
-                const dataInput = document.getElementById('data-input').value;
-                const dataFormat = document.getElementById('data-format').value;
+            analyzeBtn.addEventListener('click', function() {
+                const serverName = serverInput.value.trim();
+                const data = dataInput.value;
                 
-                if (!dataInput) {
+                if (!serverName) {
+                    alert('Please enter a server name to analyze');
+                    return;
+                }
+                
+                if (!data) {
                     alert('Please paste server data to analyze');
                     return;
                 }
                 
-                // Show loading indicator
-                document.getElementById('loading').style.display = 'block';
-                document.getElementById('report-container').style.opacity = '0.5';
+                // Parse the data and generate analysis
+                const analysis = analyzeServerData(data, serverName);
                 
-                // Use setTimeout to allow UI to update before heavy processing
-                setTimeout(function() {
-                    try {
-                        // Parse the data and generate analysis
-                        const analysis = analyzeServerData(dataInput, serverName, dataFormat);
-                        
-                        // Update the UI with the analysis results
-                        updateUI(analysis, serverName);
-                    } catch (error) {
-                        alert('Error analyzing data: ' + error.message);
-                        console.error(error);
-                    } finally {
-                        // Hide loading indicator
-                        document.getElementById('loading').style.display = 'none';
-                        document.getElementById('report-container').style.opacity = '1';
-                    }
-                }, 100);
+                // Update the UI with the analysis results
+                updateServerUI(analysis, serverName);
             });
             
             // Clear button functionality
-            document.getElementById('clear-btn').addEventListener('click', function() {
-                clearAllData();
+            clearBtn.addEventListener('click', function() {
+                clearServerData();
                 alert('Input fields have been cleared. Ready for new data.');
             });
             
-            // Detect servers when data changes
-            document.getElementById('data-input').addEventListener('input', function() {
-                detectServers(this.value);
-            });
-            
-            function detectServers(data) {
-                const lines = data.split('\n');
-                const serverNames = new Set();
-                
-                for (const line of lines) {
-                    const trimmedLine = line.trim();
-                    if (!trimmedLine) continue;
-                    
-                    // Split by tabs or spaces
-                    const parts = trimmedLine.split(/\s+/).filter(part => part !== '');
-                    
-                    // Check if this line has a server name (non-numeric first part)
-                    if (parts.length >= 3 && isServerName(parts[0]) && isNumeric(parts[1]) && isNumeric(parts[2])) {
-                        serverNames.add(parts[0]);
-                    }
-                }
-                
-                // Update the datalist with detected servers
-                const serverList = document.getElementById('server-list');
-                serverList.innerHTML = '';
-                
-                serverNames.forEach(server => {
-                    const option = document.createElement('option');
-                    option.value = server;
-                    serverList.appendChild(option);
-                });
-            }
-            
-            function isServerName(value) {
-                // Server names typically contain letters, numbers, and underscores
-                return /^[a-zA-Z0-9_\.\-]+$/.test(value) && !isNumeric(value);
-            }
-            
-            function isNumeric(value) {
-                return !isNaN(parseFloat(value)) && isFinite(value);
-            }
-            
-            function clearAllData() {
+            function clearServerData() {
                 // Clear input fields
-                document.getElementById('data-input').value = '';
-                document.getElementById('server-input').value = '';
-                document.getElementById('data-format').value = 'auto';
-                document.getElementById('server-list').innerHTML = '';
-                document.getElementById('debug-info').innerHTML = '';
-                document.getElementById('debug-info').style.display = 'none';
-                
-                // Hide loading indicator
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('report-container').style.opacity = '1';
+                dataInput.value = '';
+                serverInput.value = '';
                 
                 // Clear report container
-                document.getElementById('report-container').innerHTML = `
+                reportContainer.innerHTML = `
                     <div class="empty-state">
                         <i>📊</i>
                         <h3>No Data Analyzed</h3>
@@ -513,122 +783,64 @@
                 
                 // Reset the chart to empty state
                 if (chart) {
-                    chart.destroy();
-                    chart = null;
+                    chart.data.labels = [];
+                    chart.data.datasets[0].data = [];
+                    chart.data.datasets[0].pointBackgroundColor = [];
+                    chart.update();
                 }
             }
             
-            function analyzeServerData(data, serverName, format) {
+            function analyzeServerData(data, serverName) {
                 const lines = data.split('\n');
                 const results = [];
-                let timestamp = 1;
-                let debugInfo = "Debug Info:\n";
+                let currentTotalOut = null;
+                let currentTimestamp = 1;
                 
                 for (const line of lines) {
                     const trimmedLine = line.trim();
-                    if (!trimmedLine) continue;
                     
-                    let serverIn, serverOut, name;
-                    
-                    // Split by tabs or spaces
-                    const parts = trimmedLine.split(/\s+/).filter(part => part !== '');
-                    
-                    // Skip lines that are clearly not server data
-                    if (parts.length < 2) continue;
-                    if (trimmedLine.includes('(OUT)') || trimmedLine.includes('(IN)')) continue;
-                    if (trimmedLine.includes('===============')) continue;
-                    if (trimmedLine.includes('Monitor') || trimmedLine.includes('Run Cmds')) continue;
-                    if (trimmedLine.includes('RDNS')) continue;
-                    
-                    if (format === 'auto') {
-                        // Auto-detect format
-                        if (parts.length >= 3 && isServerName(parts[0]) && isNumeric(parts[1]) && isNumeric(parts[2])) {
-                            // Format: servername in_value out_value
-                            name = parts[0];
-                            serverIn = parseFloat(parts[1]);
-                            serverOut = parseFloat(parts[2]);
-                            debugInfo += `Found server: ${name}, IN: ${serverIn}, OUT: ${serverOut}\n`;
-                        } else if (parts.length >= 2 && isNumeric(parts[0]) && isNumeric(parts[1])) {
-                            // Format: in_value out_value
-                            serverIn = parseFloat(parts[0]);
-                            serverOut = parseFloat(parts[1]);
-                            name = serverName || "Server";
-                            debugInfo += `Found values: IN: ${serverIn}, OUT: ${serverOut}\n`;
-                        } else {
-                            // Skip lines that don't match expected formats
-                            debugInfo += `Skipping line: ${trimmedLine}\n`;
-                            continue;
-                        }
-                    } else if (format === 'named') {
-                        // Named format: servername in_value out_value
-                        if (parts.length >= 3 && isServerName(parts[0]) && isNumeric(parts[1]) && isNumeric(parts[2])) {
-                            name = parts[0];
-                            serverIn = parseFloat(parts[1]);
-                            serverOut = parseFloat(parts[2]);
-                            debugInfo += `Found server: ${name}, IN: ${serverIn}, OUT: ${serverOut}\n`;
-                        }
-                    } else if (format === 'values') {
-                        // Values only format: in_value out_value
-                        if (parts.length >= 2 && isNumeric(parts[0]) && isNumeric(parts[1])) {
-                            serverIn = parseFloat(parts[0]);
-                            serverOut = parseFloat(parts[1]);
-                            name = serverName || "Server";
-                            debugInfo += `Found values: IN: ${serverIn}, OUT: ${serverOut}\n`;
-                        }
+                    // Check for total OUT line
+                    const totalOutMatch = trimmedLine.match(/(\d+)\s*\(OUT\)/);
+                    if (totalOutMatch) {
+                        currentTotalOut = parseInt(totalOutMatch[1]);
+                        continue;
                     }
                     
-                    // If we have valid values, and if a server name is specified, check if it matches
-                    if (serverIn !== undefined && serverOut !== undefined && !isNaN(serverIn) && !isNaN(serverOut)) {
-                        // If user specified a server name, only include data for that server
-                        if (serverName && name !== serverName) {
-                            debugInfo += `Skipping server ${name} - not matching requested server ${serverName}\n`;
-                            continue;
+                    // Check for server data line
+                    if (trimmedLine.includes(serverName)) {
+                        const parts = trimmedLine.split(/\s+/);
+                        if (parts.length >= 3) {
+                            const serverOut = parseInt(parts[parts.length - 1]);
+                            const serverIn = parseInt(parts[parts.length - 2]);
+                            
+                            if (currentTotalOut !== null) {
+                                const efficiency = (serverOut / serverIn) * 100;
+                                results.push({
+                                    timestamp: `Time ${currentTimestamp++}`,
+                                    serverIn: serverIn,
+                                    serverOut: serverOut,
+                                    efficiency: efficiency,
+                                    status: efficiency > 70 ? 'GOOD' : efficiency > 30 ? 'WARNING' : 'POOR'
+                                });
+                            }
                         }
-                        
-                        const efficiency = serverIn > 0 ? (serverOut / serverIn) * 100 : 0;
-                        
-                        results.push({
-                            timestamp: `Time ${timestamp++}`,
-                            serverIn: serverIn,
-                            serverOut: serverOut,
-                            efficiency: efficiency,
-                            status: efficiency > 70 ? 'GOOD' : efficiency > 30 ? 'WARNING' : 'POOR',
-                            serverName: name
-                        });
-                        
-                        debugInfo += `Added data point: ${name} - ${serverOut}/${serverIn} = ${efficiency.toFixed(2)}%\n`;
                     }
                 }
-                
-                // Show debug info
-                const debugElement = document.getElementById('debug-info');
-                debugElement.textContent = debugInfo;
-                debugElement.style.display = 'block';
                 
                 return results;
             }
             
-            function updateUI(analysis, serverName) {
+            function updateServerUI(analysis, serverName) {
                 if (analysis.length === 0) {
-                    alert(`No valid data found for server "${serverName}". Please check your input format and server name.`);
-                    document.getElementById('report-container').innerHTML = `
-                        <div class="empty-state">
-                            <i>❌</i>
-                            <h3>No Data Found</h3>
-                            <p>No valid data found for server "${serverName}". Please check your input.</p>
-                        </div>
-                    `;
+                    alert(`No data found for server ${serverName}`);
                     return;
                 }
-                
-                // Use the server name from the first data point if available
-                const actualServerName = analysis[0].serverName || serverName || "Server";
                 
                 // Create server card HTML
                 const serverCardHTML = `
                     <div class="server-card">
                         <div class="server-header">
-                            <span class="server-name">${actualServerName}</span>
+                            <span class="server-name">${serverName}</span>
                             <span class="status" id="server-status">Analyzing...</span>
                         </div>
                         
@@ -666,31 +878,26 @@
                 `;
                 
                 // Update report container
-                document.getElementById('report-container').innerHTML = serverCardHTML;
+                reportContainer.innerHTML = serverCardHTML;
                 
                 // Reinitialize chart
                 const ctx = document.getElementById('performance-chart');
                 if (ctx) {
-                    // Destroy existing chart if it exists
-                    if (chart) {
-                        chart.destroy();
-                    }
-                    
-                    chart = new Chart(ctx, {
+                    chart = new Chart(ctx.getContext('2d'), {
                         type: 'line',
                         data: {
                             labels: analysis.map(a => a.timestamp),
                             datasets: [{
                                 label: 'Efficiency Rate (%)',
                                 data: analysis.map(a => a.efficiency),
-                                borderColor: '#3498db',
-                                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                                borderWidth: 3,
+                                borderColor: '#4299e1',
+                                backgroundColor: 'rgba(66, 153, 225, 0.1)',
+                                borderWidth: 2,
                                 pointBackgroundColor: analysis.map(a => 
-                                    a.status === 'GOOD' ? '#2ecc71' : a.status === 'WARNING' ? '#f39c12' : '#e74c3c'
+                                    a.status === 'GOOD' ? '#38a169' : a.status === 'WARNING' ? '#d69e2e' : '#e53e3e'
                                 ),
-                                pointRadius: 6,
-                                pointHoverRadius: 8,
+                                pointRadius: 5,
+                                pointHoverRadius: 7,
                                 fill: true,
                                 tension: 0.2
                             }]
@@ -758,14 +965,14 @@
                 }
                 
                 // Update server name and status
-                document.querySelector('.server-name').textContent = actualServerName;
+                document.querySelector('.server-name').textContent = serverName;
                 const statusElement = document.getElementById('server-status');
                 statusElement.className = 'status ' + overallStatus;
                 statusElement.textContent = statusText;
                 
                 // Update metrics
                 document.getElementById('avg-efficiency').textContent = avgEfficiency.toFixed(1) + '%';
-                document.getElementById('total-points').textContent = totalPoints;
+                document.getElementById('total-points').textContent = totalPoints + '/' + totalPoints;
                 document.getElementById('good-points').textContent = goodPoints;
                 document.getElementById('poor-points').textContent = poorPoints;
                 
@@ -787,8 +994,7 @@
                 const summaryElement = document.getElementById('performance-summary');
                 summaryElement.innerHTML = `
                     <div class="summary-title">Performance Summary</div>
-                    <p>Server <strong>${actualServerName}</strong> ${getSummaryText(analysis, overallStatus)}</p>
-                    <p>Found ${totalPoints} data points: ${goodPoints} good, ${warningPoints} warning, ${poorPoints} poor.</p>
+                    <p>Server <strong>${serverName}</strong> ${getSummaryText(analysis, overallStatus)}</p>
                 `;
             }
             
@@ -804,6 +1010,321 @@
                     return 'shows significant performance issues with inefficient outgoing request handling. Immediate investigation is recommended to identify the root cause of the poor performance.';
                 }
             }
+            
+            // Email Header Transformer Functionality
+            function initEmailTransformer() {
+                // Utility function
+                function showButtonFeedback(button, message) {
+                    const feedback = document.createElement('span');
+                    feedback.className = 'feedback';
+                    feedback.textContent = message;
+                    
+                    // Remove any existing feedback
+                    const existingFeedback = button.nextElementSibling;
+                    if (existingFeedback && existingFeedback.classList.contains('feedback')) {
+                        existingFeedback.remove();
+                    }
+                    
+                    button.parentNode.insertBefore(feedback, button.nextSibling);
+                }
+
+                // Single Email Transformer
+                const singleTransformBtn = document.getElementById('singleTransformBtn');
+                const singleIpBtn = document.getElementById('singleIpBtn');
+                const singleCopyBtn = document.getElementById('singleCopyBtn');
+                const singleClearBtn = document.getElementById('singleClearBtn');
+                const singleInput = document.getElementById('singleInput');
+                const singleOutput = document.getElementById('singleOutput');
+
+                singleTransformBtn.addEventListener('click', () => {
+                    transformHeaders(false);
+                    showButtonFeedback(singleTransformBtn, "Done!");
+                });
+
+                singleIpBtn.addEventListener('click', () => {
+                    transformHeaders(true);
+                    showButtonFeedback(singleIpBtn, "Done!");
+                });
+
+                singleCopyBtn.addEventListener('click', () => {
+                    if (!singleOutput.value) {
+                        showButtonFeedback(singleCopyBtn, "Nothing to copy!");
+                        return;
+                    }
+                    singleOutput.select();
+                    document.execCommand("copy");
+                    showButtonFeedback(singleCopyBtn, "Copied!");
+                });
+
+                singleClearBtn.addEventListener('click', () => {
+                    singleInput.value = '';
+                    singleOutput.value = '';
+                    showButtonFeedback(singleClearBtn, "Cleared!");
+                });
+
+                function transformHeaders(addIP) {
+                    let input = singleInput.value;
+                    if (!input.trim()) {
+                        showButtonFeedback(singleTransformBtn, "Paste headers first!");
+                        return;
+                    }
+
+                    const replacement = document.querySelector('input[name="singleReplace"]:checked').value;
+                    
+                    // Remove Return-Path if present
+                    const returnPathIndex = input.indexOf('Return-Path:');
+                    if (returnPathIndex !== -1) {
+                        const nextNewLine = input.indexOf('\n', returnPathIndex);
+                        input = input.substring(nextNewLine + 1);
+                    }
+
+                    let output = input;
+
+                    // Remove mailto: from any headers
+                    output = output.replace(/mailto:/gi, '');
+
+                    // Transform From and Sender headers with [RDNS] or [P_RRATH]
+                    output = output.replace(/(From:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
+                    output = output.replace(/(From:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
+                    output = output.replace(/(Sender:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
+                    output = output.replace(/(Sender:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
+
+                    // Transform Message-ID
+                    if (output.includes('Message-ID:')) {
+                        output = output.replace(/(Message-ID:\s*<)([^@]+)(@[^>]+>)/gi, function(_, prefix, id, suffix) {
+                            const pos = Math.max(1, Math.floor(Math.random() * id.length));
+                            return prefix + id.slice(0, pos) + '[EID]' + id.slice(pos) + suffix;
+                        });
+                    }
+
+                    // Add [IP] tag if requested
+                    if (addIP && output.includes('Subject:')) {
+                        output = output.replace(/^(Subject:.*?)$/im, function(_, subject) {
+                            return subject.includes('[IP]') ? subject : subject + ' [IP]';
+                        });
+                    }
+
+                    singleOutput.value = output;
+                }
+
+                // Bulk Email Transformer
+                const dropArea = document.getElementById('bulkUploadArea');
+                const fileInput = document.getElementById('bulkFileInput');
+                const bulkTransformBtn = document.getElementById('bulkTransformBtn');
+                const bulkIpBtn = document.getElementById('bulkIpBtn');
+                const templateBtn = document.getElementById('bulkTemplateBtn');
+                const templateContainer = document.getElementById('bulkTemplateContainer');
+                const processTemplateBtn = document.getElementById('bulkProcessTemplateBtn');
+                const resultsArea = document.getElementById('bulkResults');
+
+                let filesToProcess = [];
+
+                templateBtn.addEventListener('click', () => {
+                    templateContainer.style.display = templateContainer.style.display === 'block' ? 'none' : 'block';
+                    showButtonFeedback(templateBtn, templateContainer.style.display === 'block' ? "Template Shown" : "Template Hidden");
+                });
+
+                ["dragenter", "dragover"].forEach(event => {
+                    dropArea.addEventListener(event, e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropArea.classList.add("dragover");
+                    });
+                });
+
+                ["dragleave", "drop"].forEach(event => {
+                    dropArea.addEventListener(event, e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropArea.classList.remove("dragover");
+                    });
+                });
+
+                dropArea.addEventListener("drop", e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    fileInput.files = e.dataTransfer.files;
+                    handleFileSelection();
+                });
+
+                fileInput.addEventListener("change", handleFileSelection);
+
+                async function handleFileSelection() {
+                    filesToProcess = [];
+                    const files = Array.from(fileInput.files);
+                    
+                    if (files.length === 0) {
+                        resultsArea.innerHTML = '<p>No files selected</p>';
+                        return;
+                    }
+
+                    resultsArea.innerHTML = '<p>Processing files...</p>';
+                    
+                    try {
+                        for (const file of files) {
+                            if (file.name.endsWith('.zip')) {
+                                const zip = await JSZip.loadAsync(file);
+                                for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+                                    if (!zipEntry.dir && (zipEntry.name.endsWith('.eml') || zipEntry.name.endsWith('.txt'))) {
+                                        const content = await zipEntry.async('text');
+                                        filesToProcess.push({
+                                            name: zipEntry.name.split('/').pop(),
+                                            content: content
+                                        });
+                                    }
+                                }
+                            } else if (file.name.endsWith('.eml') || file.name.endsWith('.txt')) {
+                                const content = await file.text();
+                                filesToProcess.push({
+                                    name: file.name,
+                                    content: content
+                                });
+                            }
+                        }
+
+                        updateFileList();
+                        showButtonFeedback(bulkTransformBtn, `${filesToProcess.length} files ready`);
+                    } catch (error) {
+                        resultsArea.innerHTML = `<p style="color:red;">Error processing files: ${error.message}</p>`;
+                        console.error(error);
+                    }
+                }
+
+                function updateFileList() {
+                    if (filesToProcess.length === 0) {
+                        resultsArea.innerHTML = '<p>No valid EML or TXT files found</p>';
+                        return;
+                    }
+
+                    resultsArea.innerHTML = `
+                        <p><strong>Selected files:</strong> ${filesToProcess.length}</p>
+                        <ul style="margin-top: 0.5rem; max-height: 200px; overflow-y: auto;">
+                            ${filesToProcess.map(file => `<li>${file.name}</li>`).join('')}
+                        </ul>
+                    `;
+                }
+
+                function transformContent(content, addIP) {
+                    const replacement = document.querySelector('input[name="bulkReplace"]:checked').value;
+                    
+                    if (!content.includes('Return-Path:') && !content.includes('From:')) {
+                        return content;
+                    }
+
+                    const returnPathIndex = content.indexOf('Return-Path:');
+                    if (returnPathIndex !== -1) {
+                        const nextNewLine = content.indexOf('\n', returnPathIndex);
+                        content = content.substring(nextNewLine + 1);
+                    }
+
+                    let output = content;
+
+                    // Remove mailto: from any headers
+                    output = output.replace(/mailto:/gi, '');
+
+                    // Transform From and Sender headers with [RDNS] or [P_RRATH]
+                    output = output.replace(/(From:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
+                    output = output.replace(/(From:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
+                    output = output.replace(/(Sender:\s*.*?<[^@<\s]+)@[^>\s]+/gi, `$1@[${replacement}]`);
+                    output = output.replace(/(Sender:\s*[^<\s@]+)@([^\s]+)/gi, `$1@[${replacement}]`);
+
+                    // Transform Message-ID if present
+                    if (output.includes('Message-ID:')) {
+                        output = output.replace(/(Message-ID:\s*<)([^@]+)(@[^>]+>)/gi, (_, prefix, id, suffix) => {
+                            const pos = Math.max(1, Math.floor(Math.random() * id.length));
+                            return prefix + id.slice(0, pos) + '[EID]' + id.slice(pos) + suffix;
+                        });
+                    }
+
+                    // Add [IP] tag if requested and Subject exists
+                    if (addIP && output.includes('Subject:')) {
+                        output = output.replace(/^(Subject:.*?)$/im, (_, subject) =>
+                            subject.includes('[IP]') ? subject : subject + ' [IP]'
+                        );
+                    }
+
+                    return output;
+                }
+
+                async function processFiles(addIP) {
+                    if (filesToProcess.length === 0) {
+                        showButtonFeedback(bulkTransformBtn, "Upload files first!");
+                        return;
+                    }
+
+                    try {
+                        const zip = new JSZip();
+                        
+                        for (const file of filesToProcess) {
+                            const output = transformContent(file.content, addIP);
+                            zip.file(file.name, output);
+                        }
+
+                        const blob = await zip.generateAsync({ type: "blob" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "transformed_headers.zip";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        showButtonFeedback(bulkTransformBtn, "Downloaded!");
+                    } catch (error) {
+                        showButtonFeedback(bulkTransformBtn, "Error occurred!");
+                        console.error(error);
+                    }
+                }
+
+                async function processWithTemplate() {
+                    if (filesToProcess.length === 0) {
+                        showButtonFeedback(processTemplateBtn, "Upload files first!");
+                        return;
+                    }
+
+                    const template = document.getElementById("bulkTemplateInput").value;
+                    if (!template) {
+                        showButtonFeedback(processTemplateBtn, "Enter template first!");
+                        return;
+                    }
+
+                    if (!template.includes("[newsletter]")) {
+                        showButtonFeedback(processTemplateBtn, 'Add "[newsletter]" placeholder!');
+                        return;
+                    }
+
+                    try {
+                        const zip = new JSZip();
+                        
+                        for (const file of filesToProcess) {
+                            const transformedContent = transformContent(file.content, false);
+                            const finalContent = template.replace("[newsletter]", transformedContent);
+                            zip.file(file.name, finalContent);
+                        }
+
+                        const blob = await zip.generateAsync({ type: "blob" });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "templated_emails.zip";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        showButtonFeedback(processTemplateBtn, "Downloaded!");
+                    } catch (error) {
+                        showButtonFeedback(processTemplateBtn, "Error occurred!");
+                        console.error(error);
+                    }
+                }
+
+                bulkTransformBtn.addEventListener('click', () => processFiles(false));
+                bulkIpBtn.addEventListener('click', () => processFiles(true));
+                processTemplateBtn.addEventListener('click', processWithTemplate);
+            }
+            
+            // Initialize the Email Header Transformer
+            initEmailTransformer();
         });
     </script>
 </body>
